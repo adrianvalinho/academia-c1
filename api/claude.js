@@ -7,8 +7,6 @@ export default async function handler(req, res) {
 
   try {
     const { messages } = req.body;
-
-    // Convert messages to Gemini format
     const contents = messages.map(m => {
       const parts = Array.isArray(m.content)
         ? m.content.map(c => {
@@ -36,8 +34,6 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
-
-    // Return in Anthropic-compatible format so the app doesn't need changes
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     res.status(200).json({ content: [{ type: 'text', text }] });
 
