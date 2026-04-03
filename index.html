@@ -551,7 +551,7 @@ Genera exactamente ${n} preguntas tipo test para un simulacro oficial de examen.
 [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación breve"}]
 donde ans es índice (0-3) de la respuesta correcta. Preguntas precisas, opciones plausibles. Responde en español.`}
   ]}]);
-  return JSON.parse(text.replace(/```json|```/g,'').trim());
+  return parseQuestions(text);
 }
 
 // ── TIMER ──
@@ -780,7 +780,7 @@ async function generateAIQuestions(m){
   const data=await dbGetFileData(files[0].id);if(!data)throw new Error('No se pudieron cargar datos.');
   const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}.`:'Genera preguntas variadas.';
   const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Eres experto en oposiciones C1 Xunta de Galicia. ${ti} Genera exactamente 15 preguntas tipo test. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
-  return JSON.parse(text.replace(/```json|```/g,'').trim());
+  return parseQuestions(text);
 }
 
 async function extractBancoQuestions(m){
@@ -788,7 +788,7 @@ async function extractBancoQuestions(m){
   const f=files[Math.floor(Math.random()*files.length)];
   const data=await dbGetFileData(f.id);if(!data)throw new Error('No se pudieron cargar datos.');
   const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Extrae TODAS las preguntas tipo test de este documento. Si hay menos de 30, genera preguntas adicionales del mismo tipo y dificultad hasta completar exactamente 30. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
-  return JSON.parse(text.replace(/```json|```/g,'').trim());
+  return parseQuestions(text);
 }
 
 async function extractTextFromBase64PDF(base64){
@@ -868,6 +868,28 @@ function renderHistory(c,m){
   c.innerHTML=`<div class="history-list"><p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">${m.history.length} sesiones</p>${[...m.history].reverse().map(h=>{const[g,gc]=h.pct>=70?['Aprobado','high']:h.pct>=50?['Casi','mid']:['Suspendido','low'];return`<div class="history-item"><div class="hi-score" style="color:${h.pct>=70?'var(--ok)':h.pct>=50?'var(--warn)':'var(--ko)'}">${h.pct}%</div><div class="hi-info"><h4>${h.score}/${h.total} correctas</h4><p>${h.mode==='ia'?'✨ IA':'📋 Banco'} · ${h.date}</p></div><span class="grade-badge ${gc}">${g}</span></div>`;}).join('')}<button class="btn btn-danger" style="margin-top:8px" onclick="clearHistory()">🗑️ Borrar historial</button></div>`;
 }
 async function clearHistory(){if(!confirm('¿Borrar historial?'))return;if(sb)await sb.from('historial').delete().eq('materia_id',state.currentMateria.id);state.currentMateria.history=[];renderContent();}
+
+function parseQuestions(text){
+  // 1. Strip markdown code fences
+  let s=text.replace(/```json|```/g,'').trim();
+  // 2. Extract the JSON array (from first [ to last ])
+  const start=s.indexOf('['),end=s.lastIndexOf(']');
+  if(start!==-1&&end>start) s=s.slice(start,end+1);
+  // 3. Try direct parse
+  try{return JSON.parse(s);}catch(_){}
+  // 4. Truncated JSON: close any open string, then close open objects/arrays
+  let fixed=s.replace(/,\s*$/,'');  // trailing comma
+  const opens=[...fixed].reduce((d,c)=>{if(c==='"'&&fixed[fixed.indexOf(c)-1]!=='\\')d.inStr=!d.inStr;if(!d.inStr){if(c==='[')d.arr++;else if(c===']')d.arr--;else if(c==='{')d.obj++;else if(c==='}')d.obj--;}return d;},{arr:0,obj:0,inStr:false});
+  if(opens.inStr) fixed+='"';
+  if(opens.obj>0) fixed+='}'.repeat(opens.obj);
+  if(opens.arr>0) fixed+=']'.repeat(opens.arr);
+  try{const r=JSON.parse(fixed);if(Array.isArray(r)&&r.length)return r;}catch(_){}
+  // 5. Regex fallback: extract complete question objects
+  const items=[],re=/\{\s*"q"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"opts"\s*:\s*\[([^\]]+)\]\s*,\s*"ans"\s*:\s*(\d)\s*(?:,\s*"exp"\s*:\s*"((?:[^"\\]|\\.)*)")?\s*\}/g;
+  let m;while((m=re.exec(s))!==null){try{const opts=JSON.parse('['+m[2]+']');items.push({q:m[1],opts,ans:parseInt(m[3]),exp:m[4]||''});}catch(_){}}
+  if(items.length) return items;
+  throw new Error('No se pudieron parsear las preguntas generadas.');
+}
 
 function shuffle(arr){let a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
