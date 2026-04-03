@@ -7,8 +7,6 @@ export default async function handler(req, res) {
 
   try {
     const { messages } = req.body;
-
-    // Convert messages to Gemini format
     const contents = messages.map(m => {
       const parts = Array.isArray(m.content)
         ? m.content.map(c => {
@@ -29,15 +27,21 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents,
-          generationConfig: { maxOutputTokens: 4000, temperature: 0.7 }
+          generationConfig: {
+            maxOutputTokens: 8192,
+            temperature: 0.7,
+            responseMimeType: 'application/json'
+          }
         })
       }
     );
 
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
+    const raw = await response.text();
+    let data;
+    try { data = JSON.parse(raw); }
+    catch(e) { throw new Error('Respuesta inválida de Gemini: ' + raw.slice(0, 200)); }
 
-    // Return in Anthropic-compatible format so the app doesn't need changes
+    if (data.error) throw new Error(data.error.message);
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     res.status(200).json({ content: [{ type: 'text', text }] });
 
