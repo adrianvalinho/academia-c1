@@ -787,7 +787,7 @@ async function extractBancoQuestions(m){
   const files=m.files.filter(f=>f.type==='test');if(!files.length)throw new Error('No hay archivos de test.');
   const f=files[Math.floor(Math.random()*files.length)];
   const data=await dbGetFileData(f.id);if(!data)throw new Error('No se pudieron cargar datos.');
-  const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Extrae TODAS las preguntas tipo test. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
+  const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Extrae TODAS las preguntas tipo test de este documento. Si hay menos de 30, genera preguntas adicionales del mismo tipo y dificultad hasta completar exactamente 30. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
   return JSON.parse(text.replace(/```json|```/g,'').trim());
 }
 
@@ -823,7 +823,7 @@ async function callClaude(messages){
     }
   }
   const body={prompt};
-  if(pdfBase64) body.pdfBase64=pdfBase64;
+  if(pdfBase64&&pdfBase64.length<3000000) body.pdfBase64=pdfBase64;
   const resp=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d=await resp.json();if(d.error)throw new Error(d.error);
   return(d.content||[]).map(x=>x.text||'').join('');
