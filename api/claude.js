@@ -1,3 +1,5 @@
+// v3 - gemini-2.0-flash
+export default async function handler(req, res) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
