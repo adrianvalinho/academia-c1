@@ -4,14 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Academia C1 – Xunta de Galicia</title>
-<!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root {
-  --bg:#f0f4f8;--sidebar-bg:#1a2e4a;--sidebar-hover:#253d5e;--sidebar-active:#1d6fca;
-  --accent:#1d6fca;--accent2:#2fa8d5;--white:#fff;--border:#e1e8ef;--text:#1a2e4a;
-  --muted:#6b7a8d;--ok:#22a06b;--ko:#d93025;--warn:#e6a817;--sidebar-w:260px;
-}
+:root{--bg:#f0f4f8;--sidebar-bg:#1a2e4a;--sidebar-hover:#253d5e;--sidebar-active:#1d6fca;--accent:#1d6fca;--accent2:#2fa8d5;--white:#fff;--border:#e1e8ef;--text:#1a2e4a;--muted:#6b7a8d;--ok:#22a06b;--ko:#d93025;--warn:#e6a817;--sidebar-w:270px;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden;}
 #sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width .3s;}
@@ -22,8 +17,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .sidebar-header p{color:rgba(255,255,255,.5);font-size:.7rem;white-space:nowrap;}
 .sidebar-toggle{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:1rem;flex-shrink:0;}
 .sidebar-toggle:hover{color:#fff;}
-.add-materia-btn{margin:12px 10px;padding:8px 12px;background:var(--sidebar-active);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;}
+.add-materia-btn{margin:12px 10px 4px;padding:8px 12px;background:var(--sidebar-active);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;}
 .add-materia-btn:hover{background:#1559a8;}
+.simulacro-btn{margin:4px 10px 10px;padding:8px 12px;background:linear-gradient(90deg,#4a0a0a,#7c1a1a);color:#ff9999;border:1px solid #7c1a1a;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;transition:all .2s;}
+.simulacro-btn:hover{background:linear-gradient(90deg,#6a0a0a,#9c2a2a);color:#ffbbbb;}
 .sidebar-nav{flex:1;overflow-y:auto;padding-bottom:12px;}
 .sidebar-nav::-webkit-scrollbar{width:4px;}
 .sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
@@ -48,7 +45,111 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .content{flex:1;overflow-y:auto;padding:24px;}
 .content::-webkit-scrollbar{width:6px;}
 .content::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
-.home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+
+/* SIMULACRO MODE */
+body.simulacro-mode{background:#0a0a0f;}
+body.simulacro-mode #sidebar{background:#0d0d15;border-right:1px solid #2a1a1a;}
+body.simulacro-mode .topbar{background:#0d0d15;border-bottom:1px solid #2a1a1a;}
+body.simulacro-mode .topbar h1{color:#cc3333;}
+body.simulacro-mode .topbar p{color:#664444;}
+body.simulacro-mode .content{background:#0a0a0f;}
+body.simulacro-mode #main{background:#0a0a0f;}
+.simulacro-overlay{position:fixed;inset:0;pointer-events:none;z-index:1;background:radial-gradient(ellipse at center,transparent 40%,rgba(80,0,0,0.4) 100%);}
+.simulacro-particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.particle{position:absolute;width:2px;height:2px;background:rgba(180,0,0,0.6);border-radius:50%;animation:float linear infinite;}
+@keyframes float{0%{transform:translateY(100vh) translateX(0);opacity:0;}10%{opacity:1;}90%{opacity:.5;}100%{transform:translateY(-10vh) translateX(var(--dx));opacity:0;}}
+
+/* SIMULACRO LAUNCH */
+.sim-launch{max-width:560px;margin:0 auto;text-align:center;position:relative;z-index:2;}
+.sim-launch .sim-icon{font-size:4rem;margin-bottom:16px;animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+.sim-launch h1{font-size:2rem;font-weight:900;color:#cc3333;margin-bottom:8px;text-shadow:0 0 20px rgba(200,0,0,0.5);}
+.sim-launch p{font-size:.9rem;color:#886666;margin-bottom:32px;line-height:1.6;}
+.sim-config-box{background:#0d0d18;border:1px solid #3a1a1a;border-radius:16px;padding:28px;margin-bottom:24px;text-align:left;}
+.sim-config-box h3{color:#cc3333;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;}
+.sim-slider-wrap{margin-bottom:8px;}
+.sim-slider-wrap label{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;color:#886666;margin-bottom:8px;}
+.sim-slider-wrap label span{color:#cc3333;font-weight:800;font-size:1.1rem;}
+input[type=range]{width:100%;-webkit-appearance:none;height:4px;border-radius:99px;background:linear-gradient(90deg,#cc3333,#4a0a0a);outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#cc3333;cursor:pointer;box-shadow:0 0 8px rgba(200,0,0,0.6);}
+.sim-info{font-size:.75rem;color:#664444;margin-top:12px;line-height:1.5;}
+.sim-start-btn{width:100%;padding:16px;background:linear-gradient(90deg,#7c0000,#cc3333);color:#fff;border:none;border-radius:12px;font-size:1.1rem;font-weight:900;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;transition:all .2s;box-shadow:0 4px 20px rgba(200,0,0,0.4);}
+.sim-start-btn:hover{background:linear-gradient(90deg,#9c0000,#ee4444);box-shadow:0 4px 30px rgba(200,0,0,0.6);}
+.sim-music-toggle{display:flex;align-items:center;gap:8px;margin-top:16px;justify-content:center;cursor:pointer;color:#664444;font-size:.82rem;}
+.sim-music-toggle input{accent-color:#cc3333;}
+
+/* SIMULACRO QUIZ */
+.sim-quiz-wrap{max-width:720px;position:relative;z-index:2;}
+.sim-topbar{display:flex;align-items:center;gap:16px;margin-bottom:24px;background:#0d0d18;border:1px solid #2a1a1a;border-radius:12px;padding:14px 18px;}
+.sim-timer{font-size:1.4rem;font-weight:900;color:#cc3333;font-variant-numeric:tabular-nums;min-width:80px;text-shadow:0 0 10px rgba(200,0,0,0.5);}
+.sim-timer.warning{color:#ff6600;animation:blink .5s ease-in-out infinite;}
+.sim-timer.critical{color:#ff0000;animation:blink .3s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+.sim-prog{flex:1;}
+.sim-prog-bar-wrap{background:#1a0a0a;border-radius:99px;height:6px;overflow:hidden;}
+.sim-prog-bar{height:100%;background:linear-gradient(90deg,#cc3333,#ff6600);border-radius:99px;transition:width .4s;box-shadow:0 0 8px rgba(200,0,0,0.5);}
+.sim-prog-label{font-size:.72rem;color:#664444;margin-top:4px;display:flex;justify-content:space-between;}
+.sim-score-live{font-size:.9rem;font-weight:700;color:#886666;}
+.sim-q-num{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#664444;margin-bottom:8px;}
+.sim-q-text{font-size:1rem;font-weight:600;color:#ddbbbb;line-height:1.6;margin-bottom:20px;}
+.sim-q-materia{font-size:.72rem;color:#664444;margin-bottom:16px;font-style:italic;}
+.sim-options{display:flex;flex-direction:column;gap:10px;}
+.sim-opt{display:flex;align-items:flex-start;gap:10px;background:#0d0d18;border:1.5px solid #2a1a1a;border-radius:10px;padding:13px 15px;cursor:pointer;text-align:left;font-size:.9rem;color:#ccaaaa;transition:all .15s;line-height:1.45;}
+.sim-opt:hover:not(:disabled){border-color:#cc3333;background:#150505;transform:translateX(3px);}
+.sim-opt .letter{font-weight:700;color:#cc3333;min-width:20px;font-size:.85rem;margin-top:1px;flex-shrink:0;}
+.sim-opt.correct{border-color:#22a06b;background:#051a0f;color:#88ddaa;}
+.sim-opt.correct .letter{color:#22a06b;}
+.sim-opt.incorrect{border-color:#cc3333;background:#1a0505;color:#dd8888;}
+.sim-opt.reveal{border-color:#22a06b;background:#051a0f;color:#88ddaa;opacity:.8;}
+.sim-opt:disabled{cursor:default;transform:none;}
+.sim-feedback{margin-top:14px;padding:12px 14px;border-radius:10px;font-size:.85rem;line-height:1.5;display:none;}
+.sim-feedback.show{display:block;}
+.sim-feedback.ok{background:#051a0f;color:#88ddaa;border-left:3px solid #22a06b;}
+.sim-feedback.ko{background:#1a0505;color:#dd8888;border-left:3px solid #cc3333;}
+.sim-next-btn{width:100%;margin-top:16px;padding:13px;background:linear-gradient(90deg,#7c0000,#cc3333);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;display:none;text-transform:uppercase;letter-spacing:.05em;}
+.sim-next-btn:hover{opacity:.9;}
+
+/* SIMULACRO RESULTS */
+.sim-results{max-width:660px;margin:0 auto;text-align:center;position:relative;z-index:2;}
+.sim-results .big-score{font-size:5rem;font-weight:900;line-height:1;margin-bottom:4px;text-shadow:0 0 30px currentColor;}
+.sim-results .score-label{font-size:1rem;color:#886666;margin-bottom:16px;}
+.sim-grade{display:inline-block;padding:8px 24px;border-radius:99px;font-weight:700;font-size:1rem;margin-bottom:28px;}
+.sim-grade.high{background:#051a0f;color:#22a06b;border:1px solid #22a06b;}
+.sim-grade.mid{background:#1a1200;color:#e6a817;border:1px solid #e6a817;}
+.sim-grade.low{background:#1a0505;color:#cc3333;border:1px solid #cc3333;}
+.sim-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
+.sim-stat{background:#0d0d18;border:1px solid #2a1a1a;border-radius:12px;padding:14px;}
+.sim-stat .n{font-size:1.6rem;font-weight:800;}
+.sim-stat .l{font-size:.72rem;color:#664444;margin-top:2px;}
+.sim-stat.ok .n{color:#22a06b;}
+.sim-stat.ko .n{color:#cc3333;}
+.sim-stat.tot .n{color:#886666;}
+.sim-stat.tim .n{color:#e6a817;}
+.sim-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:28px;}
+.sim-btn{padding:10px 20px;border-radius:8px;border:none;font-size:.85rem;font-weight:700;cursor:pointer;}
+.sim-btn-primary{background:linear-gradient(90deg,#7c0000,#cc3333);color:#fff;}
+.sim-btn-secondary{background:#0d0d18;border:1px solid #3a1a1a;color:#886666;}
+.sim-btn-secondary:hover{color:#ccaaaa;border-color:#664444;}
+.sim-wrong-review{text-align:left;}
+.sim-wrong-review h3{font-size:.95rem;font-weight:700;margin-bottom:14px;color:#cc3333;}
+.sim-wrong-item{background:#0d0d18;border:1px solid #2a1a1a;border-radius:12px;padding:16px;margin-bottom:10px;}
+.sim-wrong-item .wq{font-size:.88rem;font-weight:600;margin-bottom:6px;color:#ddbbbb;}
+.sim-wrong-item .wm{font-size:.72rem;color:#664444;margin-bottom:8px;font-style:italic;}
+.sim-wrong-item .w-ans{font-size:.82rem;margin-bottom:3px;}
+.sim-wrong-item .w-ans.ko{color:#cc3333;}
+.sim-wrong-item .w-ans.ok{color:#22a06b;}
+.sim-wrong-item .w-exp{font-size:.8rem;color:#664444;margin-top:8px;padding-top:8px;border-top:1px solid #2a1a1a;line-height:1.5;}
+
+/* SIMULACRO HISTORY */
+.sim-history{max-width:640px;}
+.sim-history-item{background:#0d0d18;border:1px solid #2a1a1a;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;}
+.sim-history-item .hi-score{font-size:1.4rem;font-weight:800;min-width:52px;text-align:center;}
+.sim-history-item .hi-info{flex:1;}
+.sim-history-item .hi-info h4{font-size:.88rem;font-weight:700;color:#ddbbbb;}
+.sim-history-item .hi-info p{font-size:.75rem;color:#664444;}
+
+/* NORMAL STYLES */
+.home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;}
 .home-card{background:var(--white);border-radius:14px;border:1px solid var(--border);padding:20px;cursor:pointer;transition:box-shadow .2s,transform .15s;}
 .home-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-2px);}
 .home-card .hc-icon{font-size:2rem;margin-bottom:10px;}
@@ -92,12 +193,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .pdf-item .pdf-name{font-size:.9rem;font-weight:600;}
 .pdf-item .pdf-meta{font-size:.75rem;color:var(--muted);margin-top:2px;}
 .test-view{max-width:700px;}
-.test-options-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:28px;}
+.test-options-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
 .test-option-card{background:var(--white);border:2px solid var(--border);border-radius:14px;padding:20px;cursor:pointer;transition:all .15s;text-align:center;}
 .test-option-card:hover{border-color:var(--accent);background:#eef4fc;}
 .test-option-card .toc-icon{font-size:2rem;margin-bottom:8px;}
 .test-option-card h3{font-size:.9rem;font-weight:700;margin-bottom:4px;}
 .test-option-card p{font-size:.75rem;color:var(--muted);}
+.instrucciones-box{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;}
+.instrucciones-box .ib-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.instrucciones-box .ib-title{font-size:.85rem;font-weight:700;}
+.instrucciones-box .ib-badge{font-size:.7rem;padding:2px 8px;border-radius:99px;background:#e8f9f0;color:var(--ok);font-weight:700;}
+.instrucciones-box .ib-badge.custom{background:#fff8e1;color:var(--warn);}
+.instrucciones-box textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;outline:none;resize:vertical;min-height:80px;line-height:1.5;font-family:inherit;}
+.instrucciones-box textarea:focus{border-color:var(--accent);}
+.instrucciones-box .ib-footer{display:flex;gap:8px;margin-top:10px;align-items:center;}
+.instrucciones-box .ib-hint{font-size:.75rem;color:var(--muted);flex:1;}
 .quiz-wrap{max-width:680px;}
 .progress-bar-wrap{background:#e8edf2;border-radius:99px;height:8px;margin-bottom:6px;overflow:hidden;}
 .progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .4s;}
@@ -154,10 +264,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .empty-state h3{font-size:1rem;font-weight:700;margin-bottom:6px;}
 .empty-state p{font-size:.85rem;color:var(--muted);max-width:320px;margin:0 auto 18px;}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;}
-.modal{background:var(--white);border-radius:16px;padding:28px;width:380px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18);}
+.modal{background:var(--white);border-radius:16px;padding:28px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18);}
 .modal h2{font-size:1rem;font-weight:700;margin-bottom:16px;}
-.modal input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;outline:none;transition:border-color .15s;}
+.modal input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;outline:none;transition:border-color .15s;margin-bottom:8px;}
 .modal input:focus{border-color:var(--accent);}
+.modal textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;outline:none;resize:vertical;min-height:100px;font-family:inherit;line-height:1.5;}
+.modal textarea:focus{border-color:var(--accent);}
 .modal-footer{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;}
 .icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0;}
 .icon-opt{font-size:1.3rem;padding:6px;border-radius:8px;cursor:pointer;text-align:center;border:2px solid transparent;}
@@ -168,50 +280,40 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .history-item .hi-info{flex:1;}
 .history-item .hi-info h4{font-size:.88rem;font-weight:700;}
 .history-item .hi-info p{font-size:.75rem;color:var(--muted);}
-.config-box{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:24px;max-width:500px;margin-bottom:20px;}
-.config-box h3{font-size:.95rem;font-weight:700;margin-bottom:4px;}
-.config-box p{font-size:.8rem;color:var(--muted);margin-bottom:14px;}
-.config-box input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.85rem;outline:none;margin-bottom:10px;font-family:monospace;}
-.config-box input:focus{border-color:var(--accent);}
-.tag{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:99px;font-weight:700;margin-bottom:8px;}
-.tag.required{background:#fdecea;color:var(--ko);}
-.tag.optional{background:#e8f9f0;color:var(--ok);}
+.temario-hint{background:#eef4fc;border:1px solid #c8ddf5;border-radius:10px;padding:12px 14px;font-size:.8rem;color:var(--accent);margin-bottom:16px;line-height:1.5;}
+.temario-hint strong{display:block;margin-bottom:4px;}
 </style>
 </head>
 <body>
 
+<div class="simulacro-particles" id="particles" style="display:none"></div>
+<div class="simulacro-overlay" id="simOverlay" style="display:none"></div>
+
 <nav id="sidebar">
   <div class="sidebar-header">
     <span class="logo">🏛️</span>
-    <div style="overflow:hidden">
-      <h2>Academia C1</h2>
-      <p>Xunta de Galicia</p>
-    </div>
+    <div style="overflow:hidden"><h2>Academia C1</h2><p>Xunta de Galicia</p></div>
     <button class="sidebar-toggle" onclick="toggleSidebar()">◀</button>
   </div>
   <button class="add-materia-btn" onclick="openModal()"><span>＋</span><span>Nueva materia</span></button>
+  <button class="simulacro-btn" onclick="goSimulacro()"><span>💀</span><span>Simulacro general</span></button>
   <div class="sidebar-nav" id="sidebarNav"></div>
 </nav>
 
 <div id="main">
-  <div class="topbar">
-    <div>
-      <h1 id="topTitle">Inicio</h1>
-      <p id="topSub">Selecciona una materia para comenzar</p>
-    </div>
-  </div>
-  <div class="content" id="content">
-    <div class="ai-loading"><div class="spinner"></div><h3>Iniciando...</h3><p>Conectando con la base de datos</p></div>
-  </div>
+  <div class="topbar"><div><h1 id="topTitle">Inicio</h1><p id="topSub">Selecciona una materia para comenzar</p></div></div>
+  <div class="content" id="content"><div class="ai-loading"><div class="spinner"></div><h3>Iniciando...</h3><p>Conectando con la base de datos</p></div></div>
 </div>
 
 <div class="modal-overlay" id="modal" style="display:none">
   <div class="modal">
     <h2>➕ Nueva materia</h2>
     <label style="font-size:.82rem;color:var(--muted);display:block;margin-bottom:6px">Nombre</label>
-    <input type="text" id="modalInput" placeholder="Ej: Estatuto de Autonomía de Galicia" onkeydown="if(event.key==='Enter')saveMateria()">
-    <label style="font-size:.82rem;color:var(--muted);display:block;margin:12px 0 4px">Icono</label>
+    <input type="text" id="modalInput" placeholder="Ej: Constitución Española">
+    <label style="font-size:.82rem;color:var(--muted);display:block;margin:8px 0 4px">Icono</label>
     <div class="icon-grid" id="iconGrid"></div>
+    <label style="font-size:.82rem;color:var(--muted);display:block;margin:8px 0 4px">📌 Títulos/capítulos que entran <span style="font-weight:400">(opcional)</span></label>
+    <textarea id="modalTemario" placeholder="Ej: Título preliminar, Título I (excepto capítulo III), Título II..."></textarea>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveMateria()">Crear</button>
@@ -220,445 +322,530 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 </div>
 
 <script>
-// ─── CONFIG ──────────────────────────────────────────────────────
-// Estas variables se inyectan automáticamente desde Vercel env vars
-// En local, edítalas directamente aquí para probar
-const SUPABASE_URL = 'https://dcrurbriawuxcrmvihvi.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcnVyYnJpYXd1eGNybXZpaHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjkyNzAsImV4cCI6MjA5MDc0NTI3MH0.0Q3iV6UqC3B-DVWerj3GL0jYgAqCXV_zaoqwfciyGlY';
-const ANTHROPIC_KEY = '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';
+const SUPABASE_URL='https://dcrurbriawuxcrmvihvi.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcnVyYnJpYXd1eGNybXZpaHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjkyNzAsImV4cCI6MjA5MDc0NTI3MH0.0Q3iV6UqC3B-DVWerj3GL0jYgAqCXV_zaoqwfciyGlY';
+const ANTHROPIC_KEY='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';
 
-// ─── SUPABASE ────────────────────────────────────────────────────
-let sb = null;
-function initSupabase() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return false;
-  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  return true;
+const TEMARIO_PRESET={'constitución española':'Título preliminar, Título I (excepto Capítulo III tercero), Título II, Título III (excepto Capítulos II e III), Título IV, Título V y Título VIII.','constitución':'Título preliminar, Título I (excepto Capítulo III tercero), Título II, Título III (excepto Capítulos II e III), Título IV, Título V y Título VIII.','estatuto de autonomía de galicia':'Título preliminar, Título I, Título II, Título III y Título V.','estatuto de autonomía':'Título preliminar, Título I, Título II, Título III y Título V.','unión europea':'Derecho derivado: reglamentos, directivas, decisiones, recomendaciones y dictámenes.','fuentes del derecho europeo':'Actos jurídicos de la Unión, procedimientos de adopción y otras disposiciones según el TFUE.','instituciones de la unión europea':'El Parlamento Europeo, el Consejo Europeo, el Consejo y la Comisión. Otras instituciones.','competencias de la unión europea':'El marco de atribuciones concedidas por los tratados.','prevención de riesgos laborales':'Solo el Capítulo III de la Ley 31/1995.','procedimiento administrativo':'Títulos preliminar, I, II, III, IV y V de la Ley 39/2015.','régimen jurídico':'Capítulos I, II (excepto subsección 2ª sección 3ª), III, IV y V del título preliminar de la Ley 40/2015.','administración de galicia':'Títulos preliminar, I, II y Capítulo I del Título III de la Ley 16/2010.','contratos del sector público':'Título preliminar, Libro primero (excepto Capítulo V del Título I) y Capítulo I del Título I del Libro segundo de la Ley 9/2017.','subvenciones de galicia':'Títulos preliminar e I de la Ley 9/2007.','empleo público de galicia':'Títulos I al IX de la Ley 2/2015.','régimen financiero':'Título preliminar y Capítulos I e III del Título III del Decreto legislativo 1/1999.','discapacidad':'Título preliminar, Título I (sección 1ª capítulo V y capítulo VIII) y Título II del RDL 1/2013.','transparencia':'Título preliminar, Título I (capítulos I, II, IV, V) y Título II (secciones 1ª, 2ª y 3ª capítulo I) de la Ley 1/2016.','igualdad':'Títulos preliminar, I, II (capítulos I, II y XI), VII y VIII de la Ley 7/2023.','estatuto de los trabajadores':'Capítulo I (sección 4ª), Capítulo II (secciones 1ª y 2ª) y Capítulo III (sección 1ª) del Título I del RDL 2/2015.','seguridad social':'Capítulos II, III y IV (sección 1ª) del Título I, Capítulo XI (excepto arts. 196-199) del Título II y Capítulo I (sección 1ª) del Título VI del RDL 8/2015.'};
+
+function getTemarioPreset(name){const k=name.toLowerCase().trim();for(const[kk,v]of Object.entries(TEMARIO_PRESET)){if(k.includes(kk)||kk.includes(k))return v;}return '';}
+
+const ICONS=['📜','⚖️','🏛️','📚','🗂️','📋','🔏','💼','🏢','📝','🌍','💡','📊','🔍','🏗️','📌'];
+let selectedIcon=ICONS[0];
+let state={materias:[],currentMateria:null,currentView:'home',quizMode:null,sidebarOpen:true,simMode:false};
+let simHistorial=[];
+
+let sb=null;
+function initSupabase(){if(!SUPABASE_URL||!SUPABASE_KEY)return false;sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);return true;}
+
+async function dbLoadMaterias(){
+  if(!sb)return;
+  const{data:mats}=await sb.from('materias').select('*').order('created_at');
+  const{data:files}=await sb.from('archivos').select('id,materia_id,name,size,type');
+  const{data:hist}=await sb.from('historial').select('*').order('created_at');
+  state.materias=(mats||[]).map(m=>({...m,files:(files||[]).filter(f=>f.materia_id===m.id).map(f=>({...f,data:null})),history:(hist||[]).filter(h=>h.materia_id===m.id)}));
 }
-
-// ─── STATE ───────────────────────────────────────────────────────
-const ICONS = ['📜','⚖️','🏛️','📚','🗂️','📋','🔏','💼','🏢','📝','🌍','💡','📊','🔍','🏗️','📌'];
-let selectedIcon = ICONS[0];
-let state = { materias:[], currentMateria:null, currentView:'home', quizMode:null, sidebarOpen:true };
-
-// ─── DB OPERATIONS ───────────────────────────────────────────────
-async function dbLoadMaterias() {
-  if (!sb) return;
-  const {data:mats} = await sb.from('materias').select('*').order('created_at');
-  const {data:files} = await sb.from('archivos').select('id,materia_id,name,size,type');
-  const {data:hist} = await sb.from('historial').select('*').order('created_at');
-  state.materias = (mats||[]).map(m => ({
-    ...m,
-    files: (files||[]).filter(f=>f.materia_id===m.id).map(f=>({...f,data:null})),
-    history: (hist||[]).filter(h=>h.materia_id===m.id)
-  }));
+async function dbLoadSimHistorial(){
+  if(!sb)return;
+  try{const{data}=await sb.from('sim_historial').select('*').order('created_at',{ascending:false}).limit(30);simHistorial=data||[];}catch(e){simHistorial=[];}
 }
+async function dbSaveMateria(m){if(sb)await sb.from('materias').upsert({id:m.id,name:m.name,icon:m.icon,temario:m.temario||''});}
+async function dbDeleteMateria(id){if(sb)await sb.from('materias').delete().eq('id',id);}
+async function dbSaveFile(f,mid){if(sb)await sb.from('archivos').upsert({id:f.id,materia_id:mid,name:f.name,size:f.size,type:f.type,data:f.data});}
+async function dbDeleteFile(fid){if(sb)await sb.from('archivos').delete().eq('id',fid);}
+async function dbSaveHistory(mid,entry){if(sb)await sb.from('historial').insert({materia_id:mid,...entry});}
+async function dbSaveSimHistorial(entry){if(sb){try{await sb.from('sim_historial').insert(entry);}catch(e){}}}
+async function dbGetFileData(fid){if(!sb)return null;const{data}=await sb.from('archivos').select('data').eq('id',fid).single();return data?.data||null;}
+async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
 
-async function dbSaveMateria(m) {
-  if (!sb) return;
-  await sb.from('materias').upsert({id:m.id,name:m.name,icon:m.icon});
-}
-
-async function dbDeleteMateria(id) {
-  if (!sb) return;
-  await sb.from('materias').delete().eq('id',id);
-}
-
-async function dbSaveFile(f, materiaId) {
-  if (!sb) return;
-  await sb.from('archivos').upsert({id:f.id,materia_id:materiaId,name:f.name,size:f.size,type:f.type,data:f.data});
-}
-
-async function dbDeleteFile(fid) {
-  if (!sb) return;
-  await sb.from('archivos').delete().eq('id',fid);
-}
-
-async function dbSaveHistory(materiaId, entry) {
-  if (!sb) return;
-  await sb.from('historial').insert({materia_id:materiaId,...entry});
-}
-
-async function dbGetFileData(fid) {
-  if (!sb) return null;
-  const {data} = await sb.from('archivos').select('data').eq('id',fid).single();
-  return data?.data || null;
-}
-
-// ─── SIDEBAR ─────────────────────────────────────────────────────
-function toggleSidebar() {
-  state.sidebarOpen = !state.sidebarOpen;
-  document.getElementById('sidebar').classList.toggle('collapsed',!state.sidebarOpen);
-}
-
-function renderSidebar() {
-  const nav = document.getElementById('sidebarNav');
-  if (!state.materias.length) {
-    nav.innerHTML=`<div style="padding:20px 14px;color:rgba(255,255,255,.3);font-size:.78rem">Sin materias aún.</div>`;
-    return;
+// ── AUDIO ENGINE ──
+let audioCtx=null,musicNodes=[],musicOn=true;
+function initAudio(){if(audioCtx)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+function startSimMusic(){
+  if(!musicOn||!audioCtx)return;
+  stopSimMusic();
+  const master=audioCtx.createGain();master.gain.setValueAtTime(0.08,audioCtx.currentTime);master.connect(audioCtx.destination);
+  // Ominous drone
+  [55,82.4,110].forEach((freq,i)=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type=i===0?'sawtooth':'sine';o.frequency.setValueAtTime(freq,audioCtx.currentTime);
+    g.gain.setValueAtTime(i===0?0.4:0.2,audioCtx.currentTime);
+    o.connect(g);g.connect(master);o.start();musicNodes.push(o,g);
+  });
+  // Heartbeat
+  function beat(){
+    if(!audioCtx||musicNodes.length===0)return;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.frequency.setValueAtTime(60,audioCtx.currentTime);g.gain.setValueAtTime(0,audioCtx.currentTime);
+    g.gain.linearRampToValueAtTime(0.5,audioCtx.currentTime+0.05);
+    g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+0.15);
+    o.connect(g);g.connect(master);o.start();o.stop(audioCtx.currentTime+0.2);
+    setTimeout(()=>{if(musicNodes.length>0){const o2=audioCtx.createOscillator(),g2=audioCtx.createGain();o2.frequency.setValueAtTime(55,audioCtx.currentTime);g2.gain.setValueAtTime(0,audioCtx.currentTime);g2.gain.linearRampToValueAtTime(0.3,audioCtx.currentTime+0.05);g2.gain.linearRampToValueAtTime(0,audioCtx.currentTime+0.15);o2.connect(g2);g2.connect(master);o2.start();o2.stop(audioCtx.currentTime+0.2);}},180);
+    if(musicNodes.length>0)setTimeout(beat,1000+Math.random()*500);
   }
-  nav.innerHTML = state.materias.map(m => {
-    const avg = avgScore(m);
-    const isOpen = state.currentMateria?.id === m.id;
-    return `<div>
-      <div class="materia-header ${isOpen?'open':''}" onclick="selectMateria('${m.id}')">
-        <span class="icon">${m.icon}</span>
-        <span class="name">${m.name}</span>
-        ${avg!==null?`<span class="score-badge">${avg}%</span>`:''}
-        <span class="chevron">▶</span>
-        <button class="materia-delete" onclick="event.stopPropagation();deleteMateria('${m.id}')">✕</button>
-      </div>
-      ${isOpen?`<div class="materia-sub open">
-        <div class="sub-item ${state.currentView==='upload'?'active':''}" onclick="showView('upload')"><span>📁</span> Subir archivos</div>
-        <div class="sub-item ${state.currentView==='teoria'?'active':''}" onclick="showView('teoria')"><span>📚</span> Teoría</div>
-        <div class="sub-item ${state.currentView==='tests'?'active':''}" onclick="showView('tests')"><span>📝</span> Tests</div>
-        <div class="sub-item ${state.currentView==='history'?'active':''}" onclick="showView('history')"><span>📊</span> Historial</div>
-      </div>`:''}
+  beat();
+  musicNodes.push(master);
+}
+function stopSimMusic(){musicNodes.forEach(n=>{try{if(n.stop)n.stop();if(n.disconnect)n.disconnect();}catch(e){}});musicNodes=[];}
+function toggleMusic(){musicOn=!musicOn;if(musicOn){initAudio();startSimMusic();}else{stopSimMusic();}const el=document.getElementById('musicToggle');if(el)el.checked=musicOn;}
+
+// ── PARTICLES ──
+function startParticles(){
+  const p=document.getElementById('particles');p.style.display='block';p.innerHTML='';
+  for(let i=0;i<30;i++){
+    const el=document.createElement('div');el.className='particle';
+    el.style.cssText=`left:${Math.random()*100}%;animation-duration:${6+Math.random()*10}s;animation-delay:${Math.random()*5}s;--dx:${(Math.random()-0.5)*200}px;width:${1+Math.random()*3}px;height:${1+Math.random()*3}px;opacity:${0.3+Math.random()*0.5}`;
+    p.appendChild(el);
+  }
+}
+function stopParticles(){const p=document.getElementById('particles');p.style.display='none';p.innerHTML='';}
+
+// ── SIMULACRO MODE ──
+function enterSimMode(){state.simMode=true;document.body.classList.add('simulacro-mode');document.getElementById('simOverlay').style.display='block';startParticles();}
+function exitSimMode(){state.simMode=false;document.body.classList.remove('simulacro-mode');document.getElementById('simOverlay').style.display='none';stopParticles();stopSimMusic();clearInterval(timerInterval);}
+
+function toggleSidebar(){state.sidebarOpen=!state.sidebarOpen;document.getElementById('sidebar').classList.toggle('collapsed',!state.sidebarOpen);}
+
+function renderSidebar(){
+  const nav=document.getElementById('sidebarNav');
+  if(!state.materias.length){nav.innerHTML=`<div style="padding:20px 14px;color:rgba(255,255,255,.3);font-size:.78rem">Sin materias aún.</div>`;return;}
+  nav.innerHTML=state.materias.map(m=>{
+    const avg=avgScore(m),isOpen=state.currentMateria?.id===m.id;
+    return`<div><div class="materia-header ${isOpen?'open':''}" onclick="selectMateria('${m.id}')"><span class="icon">${m.icon}</span><span class="name">${m.name}</span>${avg!==null?`<span class="score-badge">${avg}%</span>`:''}<span class="chevron">▶</span><button class="materia-delete" onclick="event.stopPropagation();deleteMateria('${m.id}')">✕</button></div>
+    ${isOpen?`<div class="materia-sub open"><div class="sub-item ${state.currentView==='upload'?'active':''}" onclick="showView('upload')"><span>📁</span> Subir archivos</div><div class="sub-item ${state.currentView==='teoria'?'active':''}" onclick="showView('teoria')"><span>📚</span> Teoría</div><div class="sub-item ${state.currentView==='tests'?'active':''}" onclick="showView('tests')"><span>📝</span> Tests</div><div class="sub-item ${state.currentView==='history'?'active':''}" onclick="showView('history')"><span>📊</span> Historial</div></div>`:''}
     </div>`;
   }).join('');
 }
+function avgScore(m){if(!m.history?.length)return null;const l=m.history.slice(-5);return Math.round(l.reduce((a,h)=>a+h.pct,0)/l.length);}
 
-function avgScore(m) {
-  if (!m.history?.length) return null;
-  const last5 = m.history.slice(-5);
-  return Math.round(last5.reduce((a,h)=>a+h.pct,0)/last5.length);
-}
-
-// ─── MODAL ───────────────────────────────────────────────────────
-function openModal() {
+function openModal(){
   selectedIcon=ICONS[0];
   document.getElementById('iconGrid').innerHTML=ICONS.map((ic,i)=>`<div class="icon-opt ${i===0?'sel':''}" onclick="selectIcon(this,'${ic}')">${ic}</div>`).join('');
-  document.getElementById('modalInput').value='';
+  document.getElementById('modalInput').value='';document.getElementById('modalTemario').value='';
   document.getElementById('modal').style.display='flex';
   setTimeout(()=>document.getElementById('modalInput').focus(),50);
+  document.getElementById('modalInput').oninput=function(){const p=getTemarioPreset(this.value);if(p)document.getElementById('modalTemario').value=p;};
 }
 function closeModal(){document.getElementById('modal').style.display='none';}
 function selectIcon(el,ic){selectedIcon=ic;document.querySelectorAll('.icon-opt').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');}
-
-async function saveMateria() {
-  const name=document.getElementById('modalInput').value.trim();
-  if(!name)return;
-  const m={id:'mat_'+Date.now(),name,icon:selectedIcon,files:[],history:[]};
-  state.materias.push(m);
-  await dbSaveMateria(m);
-  closeModal();
-  selectMateria(m.id);
+async function saveMateria(){
+  const name=document.getElementById('modalInput').value.trim();if(!name)return;
+  const temario=document.getElementById('modalTemario').value.trim();
+  const m={id:'mat_'+Date.now(),name,icon:selectedIcon,temario,files:[],history:[]};
+  state.materias.push(m);await dbSaveMateria(m);closeModal();selectMateria(m.id);
 }
-
-async function deleteMateria(id) {
-  if(!confirm('¿Eliminar esta materia y todos sus archivos?'))return;
-  state.materias=state.materias.filter(m=>m.id!==id);
-  await dbDeleteMateria(id);
-  state.currentMateria=null; state.currentView='home';
-  renderSidebar(); renderContent();
+async function deleteMateria(id){
+  if(!confirm('¿Eliminar esta materia?'))return;
+  state.materias=state.materias.filter(m=>m.id!==id);await dbDeleteMateria(id);
+  state.currentMateria=null;state.currentView='home';renderSidebar();renderContent();
 }
-
-// ─── NAVIGATION ──────────────────────────────────────────────────
-function selectMateria(id){
-  state.currentMateria=state.materias.find(m=>m.id===id);
-  state.currentView='upload';
-  renderSidebar(); renderContent();
-}
+function selectMateria(id){state.currentMateria=state.materias.find(m=>m.id===id);state.currentView='upload';exitSimMode();renderSidebar();renderContent();}
 function showView(v){state.currentView=v;renderSidebar();renderContent();}
 function setTopBar(t,s){document.getElementById('topTitle').textContent=t;document.getElementById('topSub').textContent=s;}
 
-// ─── CONTENT ROUTER ──────────────────────────────────────────────
-function renderContent() {
+function renderContent(){
   const c=document.getElementById('content');
+  if(state.currentView==='simulacro-launch'){renderSimLaunch(c);return;}
+  if(state.currentView==='simulacro-quiz'){renderSimQuiz(c);return;}
+  if(state.currentView==='simulacro-results'){renderSimResults(c);return;}
+  if(state.currentView==='simulacro-history'){renderSimHistory(c);return;}
   if(!state.currentMateria||state.currentView==='home'){renderHome(c);return;}
   const m=state.currentMateria;
   ({upload:renderUpload,teoria:renderTeoria,tests:renderTests,quiz:renderQuiz,results:renderResults,history:renderHistory}[state.currentView]||renderHome)(c,m);
 }
 
-// ─── HOME ────────────────────────────────────────────────────────
-function renderHome(c) {
-  setTopBar('Inicio','Selecciona una materia o crea una nueva');
-  if(!state.materias.length){
-    c.innerHTML=`<div class="empty-state"><div class="es-icon">🏛️</div><h3>Bienvenido a Academia C1</h3><p>Crea tu primera materia para comenzar a estudiar.</p><button class="btn btn-primary" onclick="openModal()">➕ Crear materia</button></div>`;
-    return;
-  }
-  c.innerHTML=`<div class="home-grid">`+state.materias.map(m=>{
-    const avg=avgScore(m);
-    return `<div class="home-card" onclick="selectMateria('${m.id}')">
-      <div class="hc-icon">${m.icon}</div>
-      <h3>${m.name}</h3>
-      <p>${m.files.filter(f=>f.type==='teoria').length} teoría · ${m.files.filter(f=>f.type==='test').length} test · ${m.history.length} sesiones</p>
-      <div class="pm"><div class="pm-bar" style="width:${avg||0}%"></div></div>
-    </div>`;
-  }).join('')+`</div>`;
+function goSimulacro(){
+  state.currentMateria=null;
+  state.currentView='simulacro-launch';
+  exitSimMode();renderSidebar();renderContent();
 }
 
-// ─── UPLOAD ──────────────────────────────────────────────────────
-let uploadMode='teoria';
-function renderUpload(c,m) {
-  setTopBar(m.name,'Subir archivos');
-  const files=m.files.filter(f=>f.type===uploadMode);
-  c.innerHTML=`<div class="upload-section">
-    <div class="upload-tabs">
-      <button class="upload-tab ${uploadMode==='teoria'?'active':''}" onclick="setUploadMode('teoria')">📚 Teoría / Leyes</button>
-      <button class="upload-tab ${uploadMode==='test'?'active':''}" onclick="setUploadMode('test')">📝 Tests de repaso</button>
+// ── SIMULACRO LAUNCH ──
+function renderSimLaunch(c){
+  setTopBar('💀 Simulacro General','Pon a prueba todos tus conocimientos');
+  const materiasConArchivos=state.materias.filter(m=>m.files.length>0);
+  c.innerHTML=`<div class="sim-launch">
+    <div class="sim-icon">💀</div>
+    <h1>SIMULACRO GENERAL</h1>
+    <p>Un examen que combina todas las materias.<br>Sin piedad. Sin red. Solo tú y el temario.</p>
+    <div class="sim-config-box">
+      <h3>⚙ Configuración</h3>
+      <div class="sim-slider-wrap">
+        <label>Número de preguntas <span id="sliderVal">75</span></label>
+        <input type="range" id="numPreg" min="50" max="120" value="75" oninput="document.getElementById('sliderVal').textContent=this.value">
+      </div>
+      <div class="sim-info">
+        ⏱ Tiempo límite: <strong>90 minutos</strong><br>
+        📚 Materias disponibles: <strong>${materiasConArchivos.length}</strong> de ${state.materias.length}<br>
+        🎲 Reparto proporcional al volumen de archivos por materia
+      </div>
     </div>
-    <div class="drop-zone" onclick="document.getElementById('fi').click()"
-      ondragover="event.preventDefault();this.classList.add('drag')"
-      ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
-      <div class="dz-icon">${uploadMode==='teoria'?'📄':'📋'}</div>
-      <h3>Arrastra PDFs aquí o haz clic para seleccionar</h3>
-      <p>${uploadMode==='teoria'?'Leyes, temario, apuntes':'Exámenes y tests de repaso'}</p>
-    </div>
-    <input type="file" id="fi" class="file-input" accept=".pdf" multiple onchange="handleFiles(this.files)">
-    <div class="file-list">${files.length?files.map(fileRowHTML).join(''):`<p style="text-align:center;color:var(--muted);font-size:.82rem;padding:16px">Sin archivos en esta categoría</p>`}</div>
+    <label class="sim-music-toggle">
+      <input type="checkbox" id="musicToggle" checked onchange="musicOn=this.checked"> 🎵 Música de tensión
+    </label>
+    <br><br>
+    <button class="sim-start-btn" onclick="launchSimulacro()">⚔ COMENZAR SIMULACRO</button>
+    <br><br>
+    <button class="sim-btn sim-btn-secondary" onclick="state.currentView='simulacro-history';renderContent()">📊 Ver historial de simulacros</button>
   </div>`;
 }
 
-function setUploadMode(m){uploadMode=m;renderContent();}
-function fileRowHTML(f){return `<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;}
-function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files);}
+// ── SIMULACRO LOGIC ──
+let simQuiz={questions:[],current:0,score:0,answered:false,wrongs:[],totalTime:5400,elapsed:0};
+let timerInterval=null;
 
-function handleFiles(files) {
+async function launchSimulacro(){
+  const n=parseInt(document.getElementById('numPreg').value);
+  musicOn=document.getElementById('musicToggle').checked;
+  const c=document.getElementById('content');
+  c.innerHTML=`<div class="sim-launch"><div class="sim-icon" style="animation:pulse 1s infinite">⚙️</div><h1 style="color:#cc3333">PREPARANDO SIMULACRO</h1><p style="color:#886666">Generando preguntas de todas las materias...<br>Esto puede tardar unos minutos.</p></div>`;
+  enterSimMode();
+  try{
+    const questions=await buildSimulacroQuestions(n);
+    if(!questions.length)throw new Error('No hay suficiente material. Sube archivos en las materias.');
+    simQuiz={questions:shuffle(questions),current:0,score:0,answered:false,wrongs:[],totalTime:5400,elapsed:0,numPreg:n};
+    state.currentView='simulacro-quiz';
+    initAudio();if(musicOn)startSimMusic();
+    startTimer();renderContent();
+  }catch(e){
+    exitSimMode();
+    c.innerHTML=`<div class="sim-launch"><div class="sim-icon">❌</div><h1 style="color:#cc3333">ERROR</h1><p style="color:#886666">${e.message}</p><button class="sim-btn sim-btn-secondary" onclick="goSimulacro()">Volver</button></div>`;
+  }
+}
+
+async function buildSimulacroQuestions(total){
+  const materiasConArchivos=state.materias.filter(m=>m.files.length>0);
+  if(!materiasConArchivos.length)throw new Error('No hay materias con archivos subidos.');
+  // Calcular pesos por volumen de archivos
+  const pesos=materiasConArchivos.map(m=>({m,peso:m.files.length}));
+  const totalPeso=pesos.reduce((a,p)=>a+p.peso,0);
+  const reparto=pesos.map(p=>({m:p.m,n:Math.max(1,Math.round((p.peso/totalPeso)*total))}));
+  // Ajustar para que sume exactamente total
+  let suma=reparto.reduce((a,r)=>a+r.n,0);
+  let i=0;while(suma<total){reparto[i%reparto.length].n++;suma++;i++;}
+  while(suma>total){reparto[i%reparto.length].n=Math.max(1,reparto[i%reparto.length].n-1);suma--;i++;}
+
+  const allQuestions=[];
+  for(const{m,n} of reparto){
+    try{
+      const qs=await generateSimQuestions(m,n);
+      qs.forEach(q=>{q._materia=m.name;q._materiaIcon=m.icon;});
+      allQuestions.push(...qs);
+    }catch(e){console.warn(`Error en ${m.name}:`,e);}
+  }
+  return allQuestions;
+}
+
+async function generateSimQuestions(m,n){
+  const files=[...m.files.filter(f=>f.type==='test'),...m.files.filter(f=>f.type==='teoria')];
+  if(!files.length)return[];
+  const f=files[0];
+  const data=await dbGetFileData(f.id);
+  if(!data)return[];
+  const base64=data.split(',')[1];
+  const temarioInstruccion=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}. No hagas preguntas de otras partes.`:'Genera preguntas variadas de todo el documento.';
+  const text=await callClaude([{role:'user',content:[
+    {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+    {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${temarioInstruccion}
+Genera exactamente ${n} preguntas tipo test para un simulacro oficial de examen. Devuelve SOLO un array JSON sin backticks:
+[{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación breve"}]
+donde ans es índice (0-3) de la respuesta correcta. Preguntas precisas, opciones plausibles. Responde en español.`}
+  ]}]);
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+// ── TIMER ──
+function startTimer(){
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    simQuiz.elapsed++;
+    const remaining=simQuiz.totalTime-simQuiz.elapsed;
+    if(remaining<=0){clearInterval(timerInterval);finishSimulacro(true);return;}
+    const el=document.getElementById('simTimer');
+    if(el){
+      el.textContent=formatTime(remaining);
+      el.className='sim-timer'+(remaining<300?' critical':remaining<600?' warning':'');
+    }
+  },1000);
+}
+function formatTime(s){const m=Math.floor(s/60),ss=s%60;return`${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;}
+
+// ── SIMULACRO QUIZ RENDER ──
+function renderSimQuiz(c){
+  if(simQuiz.current>=simQuiz.questions.length){finishSimulacro(false);return;}
+  const q=simQuiz.questions[simQuiz.current];
+  const pct=Math.round((simQuiz.current/simQuiz.questions.length)*100);
+  const remaining=simQuiz.totalTime-simQuiz.elapsed;
+  setTopBar('💀 Simulacro General',`${simQuiz.questions.length} preguntas · 90 minutos`);
+  c.innerHTML=`<div class="sim-quiz-wrap">
+    <div class="sim-topbar">
+      <div id="simTimer" class="sim-timer ${remaining<300?'critical':remaining<600?'warning':''}">${formatTime(remaining)}</div>
+      <div class="sim-prog">
+        <div class="sim-prog-bar-wrap"><div class="sim-prog-bar" style="width:${pct}%"></div></div>
+        <div class="sim-prog-label"><span>Pregunta ${simQuiz.current+1}/${simQuiz.questions.length}</span><span class="sim-score-live">✅ ${simQuiz.score} correctas</span></div>
+      </div>
+    </div>
+    <div class="sim-q-num">Pregunta ${simQuiz.current+1}</div>
+    <div class="sim-q-materia">${q._materiaIcon||''} ${q._materia||''}</div>
+    <div class="sim-q-text">${q.q}</div>
+    <div class="sim-options">${q.opts.map((opt,i)=>`<button class="sim-opt" onclick="simChoose(${i})"><span class="letter">${'abcd'[i]})</span><span>${opt}</span></button>`).join('')}</div>
+    <div class="sim-feedback" id="sfb"></div>
+    <button class="sim-next-btn" id="snb" onclick="simNextQ()">${simQuiz.current+1<simQuiz.questions.length?'Siguiente →':'Finalizar simulacro'}</button>
+  </div>`;
+}
+
+function simChoose(i){
+  if(simQuiz.answered)return;
+  simQuiz.answered=true;
+  const q=simQuiz.questions[simQuiz.current];
+  document.querySelectorAll('.sim-opt').forEach(b=>b.disabled=true);
+  const fb=document.getElementById('sfb');
+  if(i===q.ans){
+    simQuiz.score++;
+    document.querySelectorAll('.sim-opt')[i].classList.add('correct');
+    fb.className='sim-feedback show ok';
+    fb.innerHTML=`✅ <strong>Correcto</strong>${q.exp?' — '+q.exp:''}`;
+  }else{
+    document.querySelectorAll('.sim-opt')[i].classList.add('incorrect');
+    document.querySelectorAll('.sim-opt')[q.ans].classList.add('reveal');
+    simQuiz.wrongs.push({...q,chosen:i});
+    fb.className='sim-feedback show ko';
+    fb.innerHTML=`❌ <strong>Incorrecto</strong> — Correcta: <strong>${'abcd'[q.ans]}) ${q.opts[q.ans]}</strong>${q.exp?'<br><small>💡 '+q.exp+'</small>':''}`;
+  }
+  document.getElementById('snb').style.display='block';
+}
+
+function simNextQ(){simQuiz.current++;simQuiz.answered=false;if(simQuiz.current>=simQuiz.questions.length)finishSimulacro(false);else renderContent();}
+
+async function finishSimulacro(timeOut=false){
+  clearInterval(timerInterval);stopSimMusic();
+  const pct=Math.round((simQuiz.score/simQuiz.questions.length)*100);
+  const elapsed=simQuiz.elapsed;
+  const entry={score:simQuiz.score,total:simQuiz.questions.length,pct,elapsed,timeout:timeOut,date:new Date().toLocaleDateString('es-ES'),time:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})};
+  simHistorial.unshift(entry);
+  await dbSaveSimHistorial(entry);
+  state.currentView='simulacro-results';
+  renderContent();
+}
+
+function renderSimResults(c){
+  const pct=Math.round((simQuiz.score/simQuiz.questions.length)*100);
+  const color=pct>=70?'#22a06b':pct>=50?'#e6a817':'#cc3333';
+  const[g,gc]=pct>=70?['✅ APROBADO','high']:pct>=50?['⚠️ CASI','mid']:['❌ SUSPENSO','low'];
+  const mins=Math.floor(simQuiz.elapsed/60),secs=simQuiz.elapsed%60;
+  setTopBar('💀 Simulacro General','Resultados finales');
+  c.innerHTML=`<div class="sim-results">
+    <div style="font-size:3rem;margin-bottom:12px">💀</div>
+    <div class="big-score" style="color:${color}">${simQuiz.score}/${simQuiz.questions.length}</div>
+    <div class="score-label" style="color:#886666">${pct}% de acierto</div>
+    <span class="sim-grade ${gc}">${g}</span>
+    <div class="sim-stats">
+      <div class="sim-stat ok"><div class="n">${simQuiz.score}</div><div class="l">Correctas</div></div>
+      <div class="sim-stat ko"><div class="n">${simQuiz.questions.length-simQuiz.score}</div><div class="l">Incorrectas</div></div>
+      <div class="sim-stat tot"><div class="n">${simQuiz.questions.length}</div><div class="l">Total</div></div>
+      <div class="sim-stat tim"><div class="n">${mins}:${String(secs).padStart(2,'0')}</div><div class="l">Tiempo</div></div>
+    </div>
+    <div class="sim-actions">
+      <button class="sim-btn sim-btn-primary" onclick="goSimulacro()">🔄 Nuevo simulacro</button>
+      <button class="sim-btn sim-btn-secondary" onclick="state.currentView='simulacro-history';renderContent()">📊 Historial</button>
+      <button class="sim-btn sim-btn-secondary" onclick="exitSimMode();state.currentView='home';renderSidebar();renderContent()">🏠 Inicio</button>
+    </div>
+    ${simQuiz.wrongs.length?`<div class="sim-wrong-review"><h3>❌ Errores (${simQuiz.wrongs.length})</h3>
+    ${simQuiz.wrongs.map(w=>`<div class="sim-wrong-item">
+      <div class="wq">${w.q}</div>
+      <div class="wm">${w._materiaIcon||''} ${w._materia||''}</div>
+      <div class="w-ans ko">✗ Tu respuesta: ${'abcd'[w.chosen]}) ${w.opts[w.chosen]}</div>
+      <div class="w-ans ok">✓ Correcta: ${'abcd'[w.ans]}) ${w.opts[w.ans]}</div>
+      ${w.exp?`<div class="w-exp">💡 ${w.exp}</div>`:''}</div>`).join('')}</div>`:'<p style="text-align:center;padding:20px;color:#22a06b;font-size:1.5rem">🎉 ¡Perfecto! Sin errores</p>'}
+  </div>`;
+}
+
+function renderSimHistory(c){
+  setTopBar('📊 Historial de Simulacros','Todos tus intentos');
+  if(!simHistorial.length){
+    c.innerHTML=`<div class="sim-history"><div class="empty-state"><div class="es-icon">💀</div><h3 style="color:#cc3333">Sin simulacros</h3><p style="color:#886666">Completa tu primer simulacro general.</p><button class="sim-btn sim-btn-primary" onclick="goSimulacro()">⚔ Ir al Simulacro</button></div></div>`;return;
+  }
+  c.innerHTML=`<div class="sim-history">
+    <p style="font-size:.82rem;color:#664444;margin-bottom:14px">${simHistorial.length} simulacros realizados</p>
+    ${simHistorial.map(h=>{
+      const[g,gc]=h.pct>=70?['Aprobado','high']:h.pct>=50?['Casi','mid']:['Suspenso','low'];
+      const clr=h.pct>=70?'#22a06b':h.pct>=50?'#e6a817':'#cc3333';
+      const mins=h.elapsed?Math.floor(h.elapsed/60):'-',secs=h.elapsed?h.elapsed%60:0;
+      return`<div class="sim-history-item">
+        <div class="hi-score" style="color:${clr}">${h.pct}%</div>
+        <div class="hi-info"><h4>${h.score}/${h.total} correctas</h4><p>⏱ ${mins}:${String(secs).padStart(2,'0')} · ${h.date} ${h.time||''}${h.timeout?' · ⏰ Tiempo agotado':''}</p></div>
+        <span class="sim-grade ${gc}" style="font-size:.72rem;padding:4px 12px">${g}</span>
+      </div>`;
+    }).join('')}
+    <button class="sim-btn sim-btn-secondary" style="margin-top:8px" onclick="clearSimHistory()">🗑️ Borrar historial</button>
+  </div>`;
+}
+
+async function clearSimHistory(){
+  if(!confirm('¿Borrar todo el historial de simulacros?'))return;
+  if(sb){try{await sb.from('sim_historial').delete().neq('id',0);}catch(e){}}
+  simHistorial=[];renderContent();
+}
+
+// ── NORMAL QUIZ ──
+function renderHome(c){
+  exitSimMode();
+  setTopBar('Inicio','Selecciona una materia o crea una nueva');
+  if(!state.materias.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🏛️</div><h3>Bienvenido a Academia C1</h3><p>Crea tu primera materia para comenzar.</p><button class="btn btn-primary" onclick="openModal()">➕ Crear materia</button></div>`;return;}
+  c.innerHTML=`<div class="home-grid">`+state.materias.map(m=>{
+    const avg=avgScore(m);
+    return`<div class="home-card" onclick="selectMateria('${m.id}')"><div class="hc-icon">${m.icon}</div><h3>${m.name}</h3><p>${m.files.filter(f=>f.type==='teoria').length} teoría · ${m.files.filter(f=>f.type==='test').length} test · ${m.history.length} sesiones</p><div class="pm"><div class="pm-bar" style="width:${avg||0}%"></div></div></div>`;
+  }).join('')+`</div>`;
+}
+
+let uploadMode='teoria';
+function renderUpload(c,m){
+  setTopBar(m.name,'Subir archivos');
+  const files=m.files.filter(f=>f.type===uploadMode);
+  c.innerHTML=`<div class="upload-section"><div class="upload-tabs"><button class="upload-tab ${uploadMode==='teoria'?'active':''}" onclick="setUploadMode('teoria')">📚 Teoría / Leyes</button><button class="upload-tab ${uploadMode==='test'?'active':''}" onclick="setUploadMode('test')">📝 Tests de repaso</button></div>
+  <div class="drop-zone" onclick="document.getElementById('fi').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)"><div class="dz-icon">${uploadMode==='teoria'?'📄':'📋'}</div><h3>Arrastra PDFs aquí o haz clic</h3><p>${uploadMode==='teoria'?'Leyes, temario, apuntes':'Exámenes y tests de repaso'}</p></div>
+  <input type="file" id="fi" class="file-input" accept=".pdf" multiple onchange="handleFiles(this.files)">
+  <div class="file-list">${files.length?files.map(fileRowHTML).join(''):`<p style="text-align:center;color:var(--muted);font-size:.82rem;padding:16px">Sin archivos en esta categoría</p>`}</div></div>`;
+}
+function setUploadMode(m){uploadMode=m;renderContent();}
+function fileRowHTML(f){return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;}
+function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files);}
+function handleFiles(files){
   const m=state.currentMateria;
   Array.from(files).forEach(file=>{
     if(!file.name.toLowerCase().endsWith('.pdf'))return;
     const reader=new FileReader();
     reader.onload=async(ev)=>{
       const f={id:'f_'+Date.now()+Math.random().toString(36).slice(2),name:file.name,size:file.size,type:uploadMode,data:ev.target.result};
-      m.files.push(f);
-      await dbSaveFile(f,m.id);
-      renderContent();
+      m.files.push(f);await dbSaveFile(f,m.id);renderContent();
     };
     reader.readAsDataURL(file);
   });
 }
+async function deleteFile(fid){state.currentMateria.files=state.currentMateria.files.filter(f=>f.id!==fid);await dbDeleteFile(fid);renderContent();}
 
-async function deleteFile(fid) {
-  state.currentMateria.files=state.currentMateria.files.filter(f=>f.id!==fid);
-  await dbDeleteFile(fid);
-  renderContent();
-}
-
-// ─── TEORIA ──────────────────────────────────────────────────────
-function renderTeoria(c,m) {
+function renderTeoria(c,m){
   setTopBar(m.name,'Teoría y leyes');
   const files=m.files.filter(f=>f.type==='teoria');
   if(!files.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">📚</div><h3>Sin archivos de teoría</h3><p>Sube PDFs de leyes o apuntes.</p><button class="btn btn-primary" onclick="showView('upload')">📁 Subir archivos</button></div>`;return;}
-  c.innerHTML=`<div class="theory-view"><p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Selecciona un archivo para resumirlo con IA.</p>
-    <div class="pdf-list">${files.map(f=>`<div class="pdf-item"><span class="pdf-icon">📄</span><div class="pdf-info"><div class="pdf-name">${f.name}</div><div class="pdf-meta">${(f.size/1024).toFixed(0)} KB · Teoría</div></div><button class="btn btn-secondary" onclick="summarizeFile('${f.id}')">✨ Resumir con IA</button></div>`).join('')}</div>
-    <div id="summaryArea"></div></div>`;
+  c.innerHTML=`<div class="theory-view">${m.temario?`<div class="temario-hint"><strong>📌 Temario configurado:</strong>${m.temario}</div>`:''}<p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Selecciona un archivo para resumirlo con IA.</p><div class="pdf-list">${files.map(f=>`<div class="pdf-item"><span class="pdf-icon">📄</span><div class="pdf-info"><div class="pdf-name">${f.name}</div><div class="pdf-meta">${(f.size/1024).toFixed(0)} KB</div></div><button class="btn btn-secondary" onclick="summarizeFile('${f.id}')">✨ Resumir con IA</button></div>`).join('')}</div><div id="summaryArea"></div></div>`;
 }
 
-async function summarizeFile(fid) {
-  const area=document.getElementById('summaryArea');
+async function summarizeFile(fid){
+  const m=state.currentMateria,area=document.getElementById('summaryArea');
   area.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Generando resumen...</h3><p>Claude está analizando el documento</p></div>`;
   const data=await dbGetFileData(fid);
-  if(!data){area.innerHTML=`<div class="summary-box" style="border-left:3px solid var(--ko)"><h3>Error</h3><p>No se encontraron los datos del archivo en la base de datos.</p></div>`;return;}
-  try {
-    const base64=data.split(',')[1];
-    const resp=await callClaude([{role:'user',content:[
-      {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
-      {type:'text',text:'Eres experto en oposiciones C1 de la Xunta de Galicia. Resume este documento de forma estructurada destacando los puntos clave que pueden entrar en examen tipo test. Usa secciones claras y bullets. Responde en español.'}
-    ]}]);
+  if(!data){area.innerHTML=`<div class="summary-box" style="border-left:3px solid var(--ko)"><h3>Error</h3><p>No se encontraron datos.</p></div>`;return;}
+  const temarioI=m.temario?`\n\nIMPORTANTE: Resume ÚNICAMENTE: ${m.temario}. Ignora el resto.`:'';
+  try{
+    const resp=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Eres experto en oposiciones C1 Xunta de Galicia. Resume este documento de forma estructurada.${temarioI} Usa secciones claras y bullets. Responde en español.`}]}]);
     area.innerHTML=`<div class="summary-box"><h3>✨ Resumen IA</h3>${resp}</div>`;
-  } catch(e){area.innerHTML=`<div class="summary-box" style="border-left:3px solid var(--ko)"><h3>Error</h3><p>${e.message}</p></div>`;}
+  }catch(e){area.innerHTML=`<div class="summary-box" style="border-left:3px solid var(--ko)"><h3>Error</h3><p>${e.message}</p></div>`;}
 }
 
-// ─── TESTS ───────────────────────────────────────────────────────
-function renderTests(c,m) {
+function renderTests(c,m){
   setTopBar(m.name,'Tests de práctica');
-  const banco=m.files.filter(f=>f.type==='test').length;
-  const teoria=m.files.filter(f=>f.type==='teoria').length;
+  const banco=m.files.filter(f=>f.type==='test').length,teoria=m.files.filter(f=>f.type==='teoria').length;
   c.innerHTML=`<div class="test-view">
+    ${m.temario?`<div class="temario-hint"><strong>📌 La IA solo generará preguntas sobre:</strong>${m.temario}</div>`:''}
     <div class="test-options-grid">
-      <div class="test-option-card" onclick="${banco?"startQuiz('banco')":"alert('Sube primero PDFs de test.')"}">
-        <div class="toc-icon">📋</div><h3>Test de banco</h3>
-        <p>Preguntas de tus PDFs de repaso${banco?` (${banco} archivo${banco>1?'s':''})`:' – Sin archivos'}</p>
-      </div>
-      <div class="test-option-card" onclick="${teoria?"startQuiz('ia')":"alert('Sube primero PDFs de teoría.')"}">
-        <div class="toc-icon">✨</div><h3>Test generado por IA</h3>
-        <p>Preguntas originales de Claude basadas en la teoría${teoria?` (${teoria} archivo${teoria>1?'s':''})`:' – Sin archivos'}</p>
-      </div>
+      <div class="test-option-card" onclick="${banco?"startQuiz('banco')":"alert('Sube primero PDFs de test.')"}"><div class="toc-icon">📋</div><h3>Test de banco</h3><p>${banco?`${banco} archivo${banco>1?'s':''}`:' Sin archivos'}</p></div>
+      <div class="test-option-card" onclick="${teoria?"startQuiz('ia')":"alert('Sube primero PDFs de teoría.')"}"><div class="toc-icon">✨</div><h3>Test generado por IA</h3><p>${teoria?`${teoria} archivo${teoria>1?'s':''}`:' Sin archivos'}${m.temario?' · Solo temario':''}</p></div>
     </div>
-    ${m.history.length?`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px"><p style="font-size:.82rem;font-weight:700;margin-bottom:8px">Últimas sesiones</p>
-    ${[...m.history].reverse().slice(0,3).map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem">
-      <span style="font-weight:800;color:${h.pct>=70?'var(--ok)':h.pct>=50?'var(--warn)':'var(--ko)'}">${h.pct}%</span>
-      <span>${h.score}/${h.total} · ${h.mode==='ia'?'✨ IA':'📋 Banco'}</span>
-      <span style="margin-left:auto;color:var(--muted)">${h.date}</span>
-    </div>`).join('')}</div>`:''}
+    <div class="instrucciones-box"><div class="ib-header"><span class="ib-title">📌 Títulos que entran en el examen</span><span class="ib-badge ${m.temario?'custom':''}">${m.temario?'Configurado':'Sin configurar'}</span></div>
+    <textarea id="temarioInput" placeholder="Ej: Título preliminar, Título I...">${m.temario||''}</textarea>
+    <div class="ib-footer"><span class="ib-hint">La IA solo hará preguntas del temario configurado.</span><button class="btn btn-primary" onclick="saveTemario()" style="padding:7px 14px;font-size:.8rem">💾 Guardar</button></div></div>
+    ${m.history.length?`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px"><p style="font-size:.82rem;font-weight:700;margin-bottom:8px">Últimas sesiones</p>${[...m.history].reverse().slice(0,3).map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="font-weight:800;color:${h.pct>=70?'var(--ok)':h.pct>=50?'var(--warn)':'var(--ko)'}">${h.pct}%</span><span>${h.score}/${h.total} · ${h.mode==='ia'?'✨ IA':'📋 Banco'}</span><span style="margin-left:auto;color:var(--muted)">${h.date}</span></div>`).join('')}</div>`:''}
   </div>`;
 }
 
-// ─── QUIZ ENGINE ─────────────────────────────────────────────────
+async function saveTemario(){const t=document.getElementById('temarioInput').value.trim();state.currentMateria.temario=t;await dbUpdateTemario(state.currentMateria.id,t);renderContent();}
+
 let quiz={questions:[],current:0,score:0,answered:false,wrongs:[]};
 const LETTERS=['a','b','c','d'];
 
-async function startQuiz(mode) {
-  state.quizMode=mode;
-  const m=state.currentMateria;
-  const c=document.getElementById('content');
-  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>${mode==='ia'?'Generando preguntas con IA...':'Cargando preguntas...'}</h3><p>${mode==='ia'?'Claude está creando preguntas originales basadas en tu teoría':'Extrayendo preguntas de tus archivos de test'}</p></div>`;
-  try {
+async function startQuiz(mode){
+  state.quizMode=mode;const m=state.currentMateria;const c=document.getElementById('content');
+  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>${mode==='ia'?'Generando preguntas con IA...':'Cargando preguntas...'}</h3></div>`;
+  try{
     const questions=mode==='ia'?await generateAIQuestions(m):await extractBancoQuestions(m);
     if(!questions.length)throw new Error('No se pudieron generar preguntas.');
     quiz={questions:shuffle(questions).slice(0,Math.min(30,questions.length)),current:0,score:0,answered:false,wrongs:[]};
-    state.currentView='quiz';
-    renderSidebar();renderContent();
-  } catch(e){
-    c.innerHTML=`<div class="empty-state"><div class="es-icon">❌</div><h3>Error</h3><p>${e.message}</p><button class="btn btn-primary" onclick="showView('tests')">Volver</button></div>`;
-  }
+    state.currentView='quiz';renderSidebar();renderContent();
+  }catch(e){c.innerHTML=`<div class="empty-state"><div class="es-icon">❌</div><h3>Error</h3><p>${e.message}</p><button class="btn btn-primary" onclick="showView('tests')">Volver</button></div>`;}
 }
 
-async function generateAIQuestions(m) {
-  const files=m.files.filter(f=>f.type==='teoria');
-  if(!files.length)throw new Error('No hay archivos de teoría.');
-  const data=await dbGetFileData(files[0].id);
-  if(!data)throw new Error('No se pudieron cargar los datos del archivo.');
-  const base64=data.split(',')[1];
-  const text=await callClaude([{role:'user',content:[
-    {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
-    {type:'text',text:`Genera exactamente 15 preguntas tipo test para oposición C1 Xunta de Galicia basadas en este documento. Devuelve SOLO un array JSON válido sin texto adicional ni backticks:
-[{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación breve"}]
-donde ans es el índice (0-3) de la respuesta correcta. Responde en español.`}
-  ]}]);
+async function generateAIQuestions(m){
+  const files=m.files.filter(f=>f.type==='teoria');if(!files.length)throw new Error('No hay archivos de teoría.');
+  const data=await dbGetFileData(files[0].id);if(!data)throw new Error('No se pudieron cargar datos.');
+  const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}.`:'Genera preguntas variadas.';
+  const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Eres experto en oposiciones C1 Xunta de Galicia. ${ti} Genera exactamente 15 preguntas tipo test. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
   return JSON.parse(text.replace(/```json|```/g,'').trim());
 }
 
-async function extractBancoQuestions(m) {
-  const files=m.files.filter(f=>f.type==='test');
-  if(!files.length)throw new Error('No hay archivos de test.');
+async function extractBancoQuestions(m){
+  const files=m.files.filter(f=>f.type==='test');if(!files.length)throw new Error('No hay archivos de test.');
   const f=files[Math.floor(Math.random()*files.length)];
-  const data=await dbGetFileData(f.id);
-  if(!data)throw new Error('No se pudieron cargar los datos del archivo.');
-  const base64=data.split(',')[1];
-  const text=await callClaude([{role:'user',content:[
-    {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
-    {type:'text',text:`Extrae TODAS las preguntas tipo test de este documento. Devuelve SOLO un array JSON válido sin backticks:
-[{"q":"pregunta","opts":["opcion a","opcion b","opcion c","opcion d"],"ans":0,"exp":"explicación breve"}]
-donde ans es el índice (0-3) de la respuesta correcta. Omite preguntas sin respuesta clara. Responde en español.`}
-  ]}]);
+  const data=await dbGetFileData(f.id);if(!data)throw new Error('No se pudieron cargar datos.');
+  const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Extrae TODAS las preguntas tipo test. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
   return JSON.parse(text.replace(/```json|```/g,'').trim());
 }
 
-async function callClaude(messages) {
-  const resp=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages})
-  });
-  const d=await resp.json();
-  if(d.error)throw new Error(d.error.message);
-  return (d.content||[]).map(x=>x.text||'').join('');
+async function callClaude(messages){
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages})});
+  const d=await resp.json();if(d.error)throw new Error(d.error.message);
+  return(d.content||[]).map(x=>x.text||'').join('');
 }
 
-function renderQuiz(c) {
+function renderQuiz(c){
   if(quiz.current>=quiz.questions.length){finishQuiz();return;}
-  const q=quiz.questions[quiz.current];
-  const pct=Math.round((quiz.current/quiz.questions.length)*100);
+  const q=quiz.questions[quiz.current],pct=Math.round((quiz.current/quiz.questions.length)*100);
   setTopBar(state.currentMateria.name,`Test · ${state.quizMode==='ia'?'✨ IA':'📋 Banco'}`);
-  c.innerHTML=`<div class="quiz-wrap">
-    <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
-    <div class="progress-label"><span>Pregunta ${quiz.current+1} de ${quiz.questions.length}</span><span class="score-live">✅ ${quiz.score}</span></div>
-    <div class="q-num">Pregunta ${quiz.current+1}</div>
-    <div class="q-text">${q.q}</div>
-    <div class="options">${q.opts.map((opt,i)=>`<button class="opt-btn" onclick="choose(${i})"><span class="letter">${LETTERS[i]})</span><span>${opt}</span></button>`).join('')}</div>
-    <div class="feedback-box" id="fb"></div>
-    <button class="next-btn" id="nb" onclick="nextQ()">${quiz.current+1<quiz.questions.length?'Siguiente →':'Ver resultados'}</button>
-  </div>`;
+  c.innerHTML=`<div class="quiz-wrap"><div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div><div class="progress-label"><span>Pregunta ${quiz.current+1} de ${quiz.questions.length}</span><span class="score-live">✅ ${quiz.score}</span></div><div class="q-num">Pregunta ${quiz.current+1}</div><div class="q-text">${q.q}</div><div class="options">${q.opts.map((opt,i)=>`<button class="opt-btn" onclick="choose(${i})"><span class="letter">${LETTERS[i]})</span><span>${opt}</span></button>`).join('')}</div><div class="feedback-box" id="fb"></div><button class="next-btn" id="nb" onclick="nextQ()">${quiz.current+1<quiz.questions.length?'Siguiente →':'Ver resultados'}</button></div>`;
 }
 
-function choose(i) {
-  if(quiz.answered)return;
-  quiz.answered=true;
+function choose(i){
+  if(quiz.answered)return;quiz.answered=true;
   const q=quiz.questions[quiz.current];
   document.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);
   const fb=document.getElementById('fb');
-  if(i===q.ans){
-    quiz.score++;
-    document.querySelectorAll('.opt-btn')[i].classList.add('correct');
-    fb.className='feedback-box show ok';
-    fb.innerHTML=`✅ <strong>¡Correcto!</strong>${q.exp?' '+q.exp:''}`;
-  } else {
-    document.querySelectorAll('.opt-btn')[i].classList.add('incorrect');
-    document.querySelectorAll('.opt-btn')[q.ans].classList.add('reveal');
-    quiz.wrongs.push({...q,chosen:i});
-    fb.className='feedback-box show ko';
-    fb.innerHTML=`❌ <strong>Incorrecto.</strong> Correcta: <strong>${LETTERS[q.ans]}) ${q.opts[q.ans]}</strong>${q.exp?'<br><small>💡 '+q.exp+'</small>':''}`;
-  }
+  if(i===q.ans){quiz.score++;document.querySelectorAll('.opt-btn')[i].classList.add('correct');fb.className='feedback-box show ok';fb.innerHTML=`✅ <strong>¡Correcto!</strong>${q.exp?' '+q.exp:''}`;}
+  else{document.querySelectorAll('.opt-btn')[i].classList.add('incorrect');document.querySelectorAll('.opt-btn')[q.ans].classList.add('reveal');quiz.wrongs.push({...q,chosen:i});fb.className='feedback-box show ko';fb.innerHTML=`❌ <strong>Incorrecto.</strong> Correcta: <strong>${LETTERS[q.ans]}) ${q.opts[q.ans]}</strong>${q.exp?'<br><small>💡 '+q.exp+'</small>':''}`;}
   document.getElementById('nb').style.display='block';
 }
-
 function nextQ(){quiz.current++;quiz.answered=false;quiz.current>=quiz.questions.length?finishQuiz():renderContent();}
 
-async function finishQuiz() {
+async function finishQuiz(){
   const pct=Math.round((quiz.score/quiz.questions.length)*100);
   const entry={score:quiz.score,total:quiz.questions.length,pct,mode:state.quizMode,date:new Date().toLocaleDateString('es-ES')};
-  state.currentMateria.history.push(entry);
-  await dbSaveHistory(state.currentMateria.id,entry);
-  state.currentView='results';
-  renderSidebar();renderContent();
+  state.currentMateria.history.push(entry);await dbSaveHistory(state.currentMateria.id,entry);
+  state.currentView='results';renderSidebar();renderContent();
 }
 
-function renderResults(c) {
+function renderResults(c){
   const pct=Math.round((quiz.score/quiz.questions.length)*100);
   const color=pct>=70?'var(--ok)':pct>=50?'var(--warn)':'var(--ko)';
-  const [g,gc]=pct>=70?['✅ Aprobado','high']:pct>=50?['⚠️ Casi','mid']:['❌ Suspendido','low'];
+  const[g,gc]=pct>=70?['✅ Aprobado','high']:pct>=50?['⚠️ Casi','mid']:['❌ Suspendido','low'];
   setTopBar(state.currentMateria.name,'Resultado');
-  c.innerHTML=`<div class="results-wrap">
-    <div class="big-score" style="color:${color}">${quiz.score}/${quiz.questions.length}</div>
-    <div class="score-label">${pct}% de acierto</div>
-    <span class="grade-badge ${gc}">${g}</span>
-    <div class="stats-grid">
-      <div class="stat-box ok"><div class="n">${quiz.score}</div><div class="l">Correctas</div></div>
-      <div class="stat-box ko"><div class="n">${quiz.questions.length-quiz.score}</div><div class="l">Incorrectas</div></div>
-      <div class="stat-box tot"><div class="n">${quiz.questions.length}</div><div class="l">Total</div></div>
-    </div>
-    <div class="results-actions">
-      <button class="btn btn-primary" onclick="startQuiz('${state.quizMode}')">🔄 Nuevo test</button>
-      <button class="btn btn-secondary" onclick="showView('tests')">📋 Elegir modo</button>
-    </div>
-    ${quiz.wrongs.length?`<div class="wrong-review"><h3>❌ Repaso de errores (${quiz.wrongs.length})</h3>
-    ${quiz.wrongs.map(w=>`<div class="wrong-item"><div class="wq">${w.q}</div>
-      <div class="w-ans ko">✗ Tu respuesta: ${LETTERS[w.chosen]}) ${w.opts[w.chosen]}</div>
-      <div class="w-ans ok">✓ Correcta: ${LETTERS[w.ans]}) ${w.opts[w.ans]}</div>
-      ${w.exp?`<div class="w-exp">💡 ${w.exp}</div>`:''}</div>`).join('')}</div>`
-    :`<p style="text-align:center;padding:20px;color:var(--ok);font-size:1.5rem">🎉 ¡Perfecto! Sin errores</p>`}
-  </div>`;
+  c.innerHTML=`<div class="results-wrap"><div class="big-score" style="color:${color}">${quiz.score}/${quiz.questions.length}</div><div class="score-label">${pct}% de acierto</div><span class="grade-badge ${gc}">${g}</span><div class="stats-grid"><div class="stat-box ok"><div class="n">${quiz.score}</div><div class="l">Correctas</div></div><div class="stat-box ko"><div class="n">${quiz.questions.length-quiz.score}</div><div class="l">Incorrectas</div></div><div class="stat-box tot"><div class="n">${quiz.questions.length}</div><div class="l">Total</div></div></div><div class="results-actions"><button class="btn btn-primary" onclick="startQuiz('${state.quizMode}')">🔄 Nuevo test</button><button class="btn btn-secondary" onclick="showView('tests')">📋 Elegir modo</button></div>${quiz.wrongs.length?`<div class="wrong-review"><h3>❌ Repaso de errores (${quiz.wrongs.length})</h3>${quiz.wrongs.map(w=>`<div class="wrong-item"><div class="wq">${w.q}</div><div class="w-ans ko">✗ Tu respuesta: ${LETTERS[w.chosen]}) ${w.opts[w.chosen]}</div><div class="w-ans ok">✓ Correcta: ${LETTERS[w.ans]}) ${w.opts[w.ans]}</div>${w.exp?`<div class="w-exp">💡 ${w.exp}</div>`:''}</div>`).join('')}</div>`:`<p style="text-align:center;padding:20px;color:var(--ok);font-size:1.5rem">🎉 ¡Perfecto! Sin errores</p>`}</div>`;
 }
 
-function renderHistory(c,m) {
+function renderHistory(c,m){
   setTopBar(m.name,'Historial');
   if(!m.history.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">📊</div><h3>Sin historial</h3><p>Completa tu primer test.</p><button class="btn btn-primary" onclick="showView('tests')">Ir a Tests</button></div>`;return;}
-  c.innerHTML=`<div class="history-list"><p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">${m.history.length} sesiones</p>
-  ${[...m.history].reverse().map(h=>{
-    const [g,gc]=h.pct>=70?['Aprobado','high']:h.pct>=50?['Casi','mid']:['Suspendido','low'];
-    return `<div class="history-item">
-      <div class="hi-score" style="color:${h.pct>=70?'var(--ok)':h.pct>=50?'var(--warn)':'var(--ko)'}">${h.pct}%</div>
-      <div class="hi-info"><h4>${h.score}/${h.total} correctas</h4><p>${h.mode==='ia'?'✨ IA':'📋 Banco'} · ${h.date}</p></div>
-      <span class="grade-badge ${gc}">${g}</span>
-    </div>`;
-  }).join('')}
-  <button class="btn btn-danger" onclick="clearHistory()">🗑️ Borrar historial</button></div>`;
+  c.innerHTML=`<div class="history-list"><p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">${m.history.length} sesiones</p>${[...m.history].reverse().map(h=>{const[g,gc]=h.pct>=70?['Aprobado','high']:h.pct>=50?['Casi','mid']:['Suspendido','low'];return`<div class="history-item"><div class="hi-score" style="color:${h.pct>=70?'var(--ok)':h.pct>=50?'var(--warn)':'var(--ko)'}">${h.pct}%</div><div class="hi-info"><h4>${h.score}/${h.total} correctas</h4><p>${h.mode==='ia'?'✨ IA':'📋 Banco'} · ${h.date}</p></div><span class="grade-badge ${gc}">${g}</span></div>`;}).join('')}<button class="btn btn-danger" style="margin-top:8px" onclick="clearHistory()">🗑️ Borrar historial</button></div>`;
 }
-
-async function clearHistory() {
-  if(!confirm('¿Borrar todo el historial?'))return;
-  if(sb)await sb.from('historial').delete().eq('materia_id',state.currentMateria.id);
-  state.currentMateria.history=[];
-  renderContent();
-}
+async function clearHistory(){if(!confirm('¿Borrar historial?'))return;if(sb)await sb.from('historial').delete().eq('materia_id',state.currentMateria.id);state.currentMateria.history=[];renderContent();}
 
 function shuffle(arr){let a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-// ─── INIT ────────────────────────────────────────────────────────
 (async()=>{
   const ok=initSupabase();
-  if(!ok){
-    document.getElementById('content').innerHTML=`<div class="empty-state">
-      <div class="es-icon">⚙️</div>
-      <h3>Configuración necesaria</h3>
-      <p>Esta app necesita conectarse a Supabase. Sigue la guía de instalación para configurar las variables de entorno.</p>
-    </div>`;
-    return;
-  }
-  await dbLoadMaterias();
-  renderSidebar();
-  renderContent();
+  if(!ok){document.getElementById('content').innerHTML=`<div class="empty-state"><div class="es-icon">⚙️</div><h3>Configuración necesaria</h3><p>Configura las variables de Supabase.</p></div>`;return;}
+  // Crear tabla sim_historial si no existe
+  try{await sb.from('sim_historial').select('id').limit(1);}catch(e){}
+  await Promise.all([dbLoadMaterias(),dbLoadSimHistorial()]);
+  renderSidebar();renderContent();
 })();
 </script>
 </body>
