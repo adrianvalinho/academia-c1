@@ -810,25 +810,22 @@ async function extractTextFromBase64PDF(base64){
 }
 
 async function callClaude(messages){
-  // Convert document messages to text-only
   let prompt='';
+  let pdfBase64=null;
   for(const m of messages){
     if(Array.isArray(m.content)){
       for(const c of m.content){
         if(c.type==='text') prompt+=c.text+'\n';
-        if(c.type==='document'){
-          try{
-            const text=await extractTextFromBase64PDF(c.source.data);
-            prompt='DOCUMENTO:\n'+text+'\n\n'+prompt;
-          }catch(e){prompt+='[Error extrayendo PDF]\n';}
-        }
+        if(c.type==='document') pdfBase64=c.source.data;
       }
     } else {
       prompt+=m.content+'\n';
     }
   }
-  const resp=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
-  const d=await resp.json();if(d.error)throw new Error(d.error.message);
+  const body={prompt};
+  if(pdfBase64) body.pdfBase64=pdfBase64;
+  const resp=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await resp.json();if(d.error)throw new Error(d.error);
   return(d.content||[]).map(x=>x.text||'').join('');
 }
 
