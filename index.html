@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academia C1 – Xunta de Galicia</title>
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#f0f4f8;--sidebar-bg:#1a2e4a;--sidebar-hover:#253d5e;--sidebar-active:#1d6fca;
+  --accent:#1d6fca;--accent2:#2fa8d5;--white:#fff;--border:#e1e8ef;--text:#1a2e4a;
+  --muted:#6b7a8d;--ok:#22a06b;--ko:#d93025;--warn:#e6a817;--sidebar-w:260px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden;}
+#sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width .3s;}
+#sidebar.collapsed{width:52px;}
+.sidebar-header{padding:16px 14px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;}
+.sidebar-header .logo{font-size:1.4rem;flex-shrink:0;}
+.sidebar-header h2{color:#fff;font-size:.88rem;font-weight:700;white-space:nowrap;}
+.sidebar-header p{color:rgba(255,255,255,.5);font-size:.7rem;white-space:nowrap;}
+.sidebar-toggle{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:1rem;flex-shrink:0;}
+.sidebar-toggle:hover{color:#fff;}
+.add-materia-btn{margin:12px 10px;padding:8px 12px;background:var(--sidebar-active);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;}
+.add-materia-btn:hover{background:#1559a8;}
+.sidebar-nav{flex:1;overflow-y:auto;padding-bottom:12px;}
+.sidebar-nav::-webkit-scrollbar{width:4px;}
+.sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
+.materia-header{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;color:rgba(255,255,255,.85);font-size:.84rem;font-weight:600;border-radius:8px;margin:2px 6px;transition:background .15s;white-space:nowrap;overflow:hidden;}
+.materia-header:hover{background:var(--sidebar-hover);}
+.materia-header .icon{font-size:1rem;flex-shrink:0;}
+.materia-header .name{flex:1;overflow:hidden;text-overflow:ellipsis;}
+.materia-header .chevron{font-size:.65rem;flex-shrink:0;transition:transform .2s;}
+.materia-header .score-badge{font-size:.65rem;background:rgba(255,255,255,.12);padding:1px 6px;border-radius:99px;flex-shrink:0;}
+.materia-header.open .chevron{transform:rotate(90deg);}
+.materia-sub{display:none;}
+.materia-sub.open{display:block;}
+.sub-item{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 30px;color:rgba(255,255,255,.6);font-size:.8rem;cursor:pointer;border-radius:8px;margin:1px 6px;transition:background .15s,color .15s;white-space:nowrap;}
+.sub-item:hover{background:var(--sidebar-hover);color:#fff;}
+.sub-item.active{background:var(--sidebar-active);color:#fff;}
+.materia-delete{background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:.75rem;flex-shrink:0;padding:0 2px;}
+.materia-delete:hover{color:var(--ko);}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:12px;}
+.topbar h1{font-size:1.05rem;font-weight:700;}
+.topbar p{font-size:.8rem;color:var(--muted);}
+.content{flex:1;overflow-y:auto;padding:24px;}
+.content::-webkit-scrollbar{width:6px;}
+.content::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+.home-card{background:var(--white);border-radius:14px;border:1px solid var(--border);padding:20px;cursor:pointer;transition:box-shadow .2s,transform .15s;}
+.home-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-2px);}
+.home-card .hc-icon{font-size:2rem;margin-bottom:10px;}
+.home-card h3{font-size:.95rem;font-weight:700;margin-bottom:4px;}
+.home-card p{font-size:.78rem;color:var(--muted);}
+.home-card .pm{margin-top:12px;background:#e8edf2;border-radius:99px;height:5px;overflow:hidden;}
+.home-card .pm-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;}
+.upload-section{max-width:700px;}
+.upload-tabs{display:flex;gap:8px;margin-bottom:20px;}
+.upload-tab{padding:8px 18px;border-radius:8px;border:2px solid var(--border);background:var(--white);font-size:.85rem;font-weight:600;cursor:pointer;color:var(--muted);transition:all .15s;}
+.upload-tab.active{border-color:var(--accent);color:var(--accent);background:#eef4fc;}
+.drop-zone{border:2px dashed var(--border);border-radius:14px;padding:40px;text-align:center;background:var(--white);cursor:pointer;transition:border-color .2s,background .2s;}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:#eef4fc;}
+.drop-zone .dz-icon{font-size:2.5rem;margin-bottom:10px;}
+.drop-zone h3{font-size:.95rem;font-weight:700;margin-bottom:6px;}
+.drop-zone p{font-size:.8rem;color:var(--muted);}
+.file-input{display:none;}
+.file-list{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+.file-row{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+.file-row .file-icon{font-size:1.3rem;}
+.file-row .file-info{flex:1;}
+.file-row .file-name{font-size:.85rem;font-weight:600;}
+.file-row .file-size{font-size:.75rem;color:var(--muted);}
+.file-row .file-type{font-size:.72rem;padding:3px 8px;border-radius:99px;font-weight:700;}
+.file-row .file-type.teoria{background:#eef4fc;color:var(--accent);}
+.file-row .file-type.test{background:#e8f9f0;color:var(--ok);}
+.file-row .del-file{background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;}
+.file-row .del-file:hover{color:var(--ko);}
+.theory-view{max-width:900px;}
+.btn{padding:9px 18px;border-radius:8px;border:none;font-size:.85rem;font-weight:700;cursor:pointer;transition:opacity .2s;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{opacity:.85;}
+.btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;}
+.btn-secondary{background:var(--white);border:1.5px solid var(--border);color:var(--text);}
+.btn-danger{background:#fdecea;color:var(--ko);}
+.summary-box{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:24px;margin-top:20px;line-height:1.7;font-size:.9rem;white-space:pre-wrap;}
+.summary-box h3{margin-bottom:12px;font-size:1rem;color:var(--accent);}
+.pdf-list{display:flex;flex-direction:column;gap:10px;}
+.pdf-item{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.pdf-item .pdf-icon{font-size:1.8rem;}
+.pdf-item .pdf-info{flex:1;}
+.pdf-item .pdf-name{font-size:.9rem;font-weight:600;}
+.pdf-item .pdf-meta{font-size:.75rem;color:var(--muted);margin-top:2px;}
+.test-view{max-width:700px;}
+.test-options-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:28px;}
+.test-option-card{background:var(--white);border:2px solid var(--border);border-radius:14px;padding:20px;cursor:pointer;transition:all .15s;text-align:center;}
+.test-option-card:hover{border-color:var(--accent);background:#eef4fc;}
+.test-option-card .toc-icon{font-size:2rem;margin-bottom:8px;}
+.test-option-card h3{font-size:.9rem;font-weight:700;margin-bottom:4px;}
+.test-option-card p{font-size:.75rem;color:var(--muted);}
+.quiz-wrap{max-width:680px;}
+.progress-bar-wrap{background:#e8edf2;border-radius:99px;height:8px;margin-bottom:6px;overflow:hidden;}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .4s;}
+.progress-label{font-size:.78rem;color:var(--muted);margin-bottom:20px;display:flex;justify-content:space-between;}
+.score-live{font-weight:700;color:var(--accent);}
+.q-num{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:6px;}
+.q-text{font-size:1rem;font-weight:600;line-height:1.55;margin-bottom:18px;}
+.options{display:flex;flex-direction:column;gap:9px;}
+.opt-btn{display:flex;align-items:flex-start;gap:10px;background:#f7f9fb;border:2px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;text-align:left;font-size:.9rem;color:var(--text);transition:border-color .15s,background .15s,transform .1s;line-height:1.45;}
+.opt-btn:hover:not(:disabled){border-color:var(--accent);background:#eef4fc;transform:translateX(3px);}
+.opt-btn .letter{font-weight:700;color:var(--accent);min-width:20px;font-size:.85rem;margin-top:1px;flex-shrink:0;}
+.opt-btn.correct{border-color:var(--ok);background:#e8f9f0;color:#145c3c;}
+.opt-btn.correct .letter{color:var(--ok);}
+.opt-btn.incorrect{border-color:var(--ko);background:#fdecea;color:#7c1a14;}
+.opt-btn.incorrect .letter{color:var(--ko);}
+.opt-btn.reveal{border-color:var(--ok);background:#e8f9f0;color:#145c3c;opacity:.8;}
+.opt-btn:disabled{cursor:default;transform:none;}
+.feedback-box{margin-top:14px;padding:12px 14px;border-radius:10px;font-size:.85rem;line-height:1.5;display:none;}
+.feedback-box.show{display:block;}
+.feedback-box.ok{background:#e8f9f0;color:#145c3c;border-left:3px solid var(--ok);}
+.feedback-box.ko{background:#fdecea;color:#7c1a14;border-left:3px solid var(--ko);}
+.next-btn{width:100%;margin-top:16px;padding:13px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;display:none;}
+.next-btn:hover{opacity:.9;}
+.results-wrap{max-width:600px;margin:0 auto;text-align:center;}
+.big-score{font-size:5rem;font-weight:800;line-height:1;margin-bottom:4px;}
+.score-label{font-size:1rem;color:var(--muted);margin-bottom:16px;}
+.grade-badge{display:inline-block;padding:7px 20px;border-radius:99px;font-weight:700;font-size:.95rem;margin-bottom:24px;}
+.grade-badge.high{background:#e8f9f0;color:#145c3c;}
+.grade-badge.mid{background:#fff8e1;color:#7c5c00;}
+.grade-badge.low{background:#fdecea;color:#7c1a14;}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+.stat-box{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.stat-box .n{font-size:2rem;font-weight:800;}
+.stat-box .l{font-size:.75rem;color:var(--muted);margin-top:2px;}
+.stat-box.ok .n{color:var(--ok);}
+.stat-box.ko .n{color:var(--ko);}
+.stat-box.tot .n{color:var(--accent);}
+.results-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:28px;}
+.wrong-review{text-align:left;}
+.wrong-review h3{font-size:.95rem;font-weight:700;margin-bottom:14px;color:var(--ko);}
+.wrong-item{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;}
+.wrong-item .wq{font-size:.88rem;font-weight:600;margin-bottom:8px;}
+.wrong-item .w-ans{font-size:.82rem;margin-bottom:3px;}
+.wrong-item .w-ans.ko{color:var(--ko);}
+.wrong-item .w-ans.ok{color:var(--ok);}
+.wrong-item .w-exp{font-size:.8rem;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);line-height:1.5;}
+.ai-loading{text-align:center;padding:60px 20px;}
+.ai-loading .spinner{width:48px;height:48px;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ai-loading p{color:var(--muted);font-size:.9rem;}
+.ai-loading h3{font-size:1rem;font-weight:700;margin-bottom:6px;}
+.empty-state{text-align:center;padding:60px 20px;}
+.empty-state .es-icon{font-size:3rem;margin-bottom:12px;}
+.empty-state h3{font-size:1rem;font-weight:700;margin-bottom:6px;}
+.empty-state p{font-size:.85rem;color:var(--muted);max-width:320px;margin:0 auto 18px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;}
+.modal{background:var(--white);border-radius:16px;padding:28px;width:380px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18);}
+.modal h2{font-size:1rem;font-weight:700;margin-bottom:16px;}
+.modal input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;outline:none;transition:border-color .15s;}
+.modal input:focus{border-color:var(--accent);}
+.modal-footer{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;}
+.icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0;}
+.icon-opt{font-size:1.3rem;padding:6px;border-radius:8px;cursor:pointer;text-align:center;border:2px solid transparent;}
+.icon-opt:hover,.icon-opt.sel{border-color:var(--accent);background:#eef4fc;}
+.history-list{max-width:600px;}
+.history-item{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;}
+.history-item .hi-score{font-size:1.4rem;font-weight:800;min-width:44px;text-align:center;}
+.history-item .hi-info{flex:1;}
+.history-item .hi-info h4{font-size:.88rem;font-weight:700;}
+.history-item .hi-info p{font-size:.75rem;color:var(--muted);}
+.config-box{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:24px;max-width:500px;margin-bottom:20px;}
+.config-box h3{font-size:.95rem;font-weight:700;margin-bottom:4px;}
+.config-box p{font-size:.8rem;color:var(--muted);margin-bottom:14px;}
+.config-box input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.85rem;outline:none;margin-bottom:10px;font-family:monospace;}
+.config-box input:focus{border-color:var(--accent);}
+.tag{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:99px;font-weight:700;margin-bottom:8px;}
+.tag.required{background:#fdecea;color:var(--ko);}
+.tag.optional{background:#e8f9f0;color:var(--ok);}
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="sidebar-header">
+    <span class="logo">🏛️</span>
+    <div style="overflow:hidden">
+      <h2>Academia C1</h2>
+      <p>Xunta de Galicia</p>
+    </div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()">◀</button>
+  </div>
+  <button class="add-materia-btn" onclick="openModal()"><span>＋</span><span>Nueva materia</span></button>
+  <div class="sidebar-nav" id="sidebarNav"></div>
+</nav>
+
+<div id="main">
+  <div class="topbar">
+    <div>
+      <h1 id="topTitle">Inicio</h1>
+      <p id="topSub">Selecciona una materia para comenzar</p>
+    </div>
+  </div>
+  <div class="content" id="content">
+    <div class="ai-loading"><div class="spinner"></div><h3>Iniciando...</h3><p>Conectando con la base de datos</p></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" style="display:none">
+  <div class="modal">
+    <h2>➕ Nueva materia</h2>
+    <label style="font-size:.82rem;color:var(--muted);display:block;margin-bottom:6px">Nombre</label>
+    <input type="text" id="modalInput" placeholder="Ej: Estatuto de Autonomía de Galicia" onkeydown="if(event.key==='Enter')saveMateria()">
+    <label style="font-size:.82rem;color:var(--muted);display:block;margin:12px 0 4px">Icono</label>
+    <div class="icon-grid" id="iconGrid"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveMateria()">Crear</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────
+// Estas variables se inyectan automáticamente desde Vercel env vars
+// En local, edítalas directamente aquí para probar
+const SUPABASE_URL = typeof __SUPABASE_URL__ !== 'undefined' ? __SUPABASE_URL__ : '';
+const SUPABASE_KEY = typeof __SUPABASE_KEY__ !== 'undefined' ? __SUPABASE_KEY__ : '';
+const ANTHROPIC_KEY = typeof __ANTHROPIC_KEY__ !== 'undefined' ? __ANTHROPIC_KEY__ : '';
+
+// ─── SUPABASE ────────────────────────────────────────────────────
+let sb = null;
+function initSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return false;
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return true;
+}
+
+// ─── STATE ───────────────────────────────────────────────────────
+const ICONS = ['📜','⚖️','🏛️','📚','🗂️','📋','🔏','💼','🏢','📝','🌍','💡','📊','🔍','🏗️','📌'];
+let selectedIcon = ICONS[0];
+let state = { materias:[], currentMateria:null, currentView:'home', quizMode:null, sidebarOpen:true };
+
+// ─── DB OPERATIONS ───────────────────────────────────────────────
+async function dbLoadMaterias() {
+  if (!sb) return;
+  const {data:mats} = await sb.from('materias').select('*').order('created_at');
+  const {data:files} = await sb.from('archivos').select('id,materia_id,name,size,type');
+  const {data:hist} = await sb.from('historial').select('*').order('created_at');
+  state.materias = (mats||[]).map(m => ({
+    ...m,
+    files: (files||[]).filter(f=>f.materia_id===m.id).map(f=>({...f,data:null})),
+    history: (hist||[]).filter(h=>h.materia_id===m.id)
+  }));
+}
+
+async function dbSaveMateria(m) {
+  if (!sb) return;
+  await sb.from('materias').upsert({id:m.id,name:m.name,icon:m.icon});
+}
+
+async function dbDeleteMateria(id) {
+  if (!sb) return;
+  await sb.from('materias').delete().eq('id',id);
+}
+
+async function dbSaveFile(f, materiaId) {
+  if (!sb) return;
+  await sb.from('archivos').upsert({id:f.id,materia_id:materiaId,name:f.name,size:f.size,type:f.type,data:f.data});
+}
+
+async function dbDeleteFile(fid) {
+  if (!sb) return;
+  await sb.from('archivos').delete().eq('id',fid);
+}
+
+async function dbSaveHistory(materiaId, entry) {
+  if (!sb) return;
+  await sb.from('historial').insert({materia_id:materiaId,...entry});
+}
+
+async function dbGetFileData(fid) {
+  if (!sb) return null;
+  const {data} = await sb.from('archivos').select('data').eq('id',fid).single();
+  return data?.data || null;
+}
+
+// ─── SIDEBAR ─────────────────────────────────────────────────────
+function toggleSidebar() {
+  state.sidebarOpen = !state.sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('collapsed',!state.sidebarOpen);
+}
+
+function renderSidebar() {
+  const nav = document.getElementById('sidebarNav');
+  if (!state.materias.length) {
+    nav.innerHTML=`<div style="padding:20px 14px;color:rgba(255,255,255,.3);font-size:.78rem">Sin materias aún.</div>`;
+    return;
+  }
+  nav.innerHTML = state.materias.map(m => {
+    const avg = avgScore(m);
+    const isOpen = state.currentMateria?.id === m.id;
+    return `<div>
+      <div class="materia-header ${isOpen?'open':''}" onclick="selectMateria('${m.id}')">
+        <span class="icon">${m.icon}</span>
+        <span class="name">${m.name}</span>
+        ${avg!==null?`<span class="score-badge">${avg}%</span>`:''}
+        <span class="chevron">▶</span>
+        <button class="materia-delete" onclick="event.stopPropagation();deleteMateria('${m.id}')">✕</button>
+      </div>
+      ${isOpen?`<div class="materia-sub open">
+        <div class="sub-item ${state.currentView==='upload'?'active':''}" onclick="showView('upload')"><span>📁</span> Subir archivos</div>
+        <div class="sub-item ${state.currentView==='teoria'?'active':''}" onclick="showView('teoria')"><span>📚</span> Teoría</div>
+        <div class="sub-item ${state.currentView==='tests'?'active':''}" onclick="showView('tests')"><span>📝</span> Tests</div>
+        <div class="sub-item ${state.currentView==='history'?'active':''}" onclick="showView('history')"><span>📊</span> Historial</div>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function avgScore(m) {
+  if (!m.history?.length) return null;
+  const last5 = m.history.slice(-5);
+  return Math.round(last5.reduce((a,h)=>a+h.pct,0)/last5.length);
+}
+
+// ─── MODAL ───────────────────────────────────────────────────────
+function openModal() {
+  selectedIcon=ICONS[0];
+  document.getElementById('iconGrid').innerHTML=ICONS.map((ic,i)=>`<div class="icon-opt ${i===0?'sel':''}" onclick="selectIcon(this,'${ic}')">${ic}</div>`).join('');
+  document.getElementById('modalInput').value='';
+  document.getElementById('modal').style.display='flex';
+  setTimeout(()=>document.getElementById('modalInput').focus(),50);
+}
+function closeModal(){document.getElementById('modal').style.display='none';}
+function selectIcon(el,ic){selectedIcon=ic;document.querySelectorAll('.icon-opt').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');}
+
+async function saveMateria() {
+  const name=document.getElementById('modalInput').value.trim();
+  if(!name)return;
+  const m={id:'mat_'+Date.now(),name,icon:selectedIcon,files:[],history:[]};
+  state.materias.push(m);
+  await dbSaveMateria(m);
+  closeModal();
+  selectMateria(m.id);
+}
+
+async function deleteMateria(id) {
+  if(!confirm('¿Eliminar esta materia y todos sus archivos?'))return;
+  state.materias=state.materias.filter(m=>m.id!==id);
+  await dbDeleteMateria(id);
+  state.currentMateria=null; state.currentView='home';
+  renderSidebar(); renderContent();
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────
+function selectMateria(id){
+  state.currentMateria=state.materias.find(m=>m.id===id);
+  state.currentView='upload';
+  renderSidebar(); renderContent();
+}
+function showView(v){state.currentView=v;renderSidebar();renderContent();}
+function setTopBar(t,s){document.getElementById('topTitle').textContent=t;document.getElementById('topSub').textContent=s;}
+
+// ─── CONTENT ROUTER ──────────────────────────────────────────────
+function renderContent() {
+  const c=document.getElementById('content');
+  if(!state.currentMateria||state.currentView==='home'){renderHome(c);return;}
+  const m=state.currentMateria;
+  ({upload:renderUpload,teoria:renderTeoria,tests:renderTests,quiz:renderQuiz,results:renderResults,history:renderHistory}[state.currentView]||renderHome)(c,m);
+}
+
+// ─── HOME ────────────────────────────────────────────────────────
+function renderHome(c) {
+  setTopBar('Inicio','Selecciona una materia o crea una nueva');
+  if(!state.materias.length){
+    c.innerHTML=`<div class="empty-state"><div class="es-icon">🏛️</div><h3>Bienvenido a Academia C1</h3><p>Crea tu primera materia para comenzar a estudiar.</p><button class="btn btn-primary" onclick="openModal()">➕ Crear materia</button></div>`;
+    return;
+  }
+  c.innerHTML=`<div class="home-grid">`+state.materias.map(m=>{
+    const avg=avgScore(m);
+    return `<div class="home-card" onclick="selectMateria('${m.id}')">
+      <div class="hc-icon">${m.icon}</div>
+      <h3>${m.name}</h3>
+      <p>${m.files.filter(f=>f.type==='teoria').length} teoría · ${m.files.filter(f=>f.type==='test').length} test · ${m.history.length} sesiones</p>
+      <div class="pm"><div class="pm-bar" style="width:${avg||0}%"></div></div>
+    </div>`;
+  }).join('')+`</div>`;
+}
+
+// ─── UPLOAD ──────────────────────────────────────────────────────
+let uploadMode='teoria';
+function renderUpload(c,m) {
+  setTopBar(m.name,'Subir archivos');
+  const files=m.files.filter(f=>f.type===uploadMode);
+  c.innerHTML=`<div class="upload-section">
+    <div class="upload-tabs">
+      <button class="upload-tab ${uploadMode==='teoria'?'active':''}" onclick="setUploadMode('teoria')">📚 Teoría / Leyes</button>
+      <button class="upload-tab ${uploadMode==='test'?'active':''}" onclick="setUploadMode('test')">📝 Tests de repaso</button>
+    </div>
+    <div class="drop-zone" onclick="document.getElementById('fi').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+      <div class="dz-icon">${uploadMode==='teoria'?'📄':'📋'}</div>
+      <h3>Arrastra PDFs aquí o haz clic para seleccionar</h3>
+      <p>${uploadMode==='teoria'?'Leyes, temario, apuntes':'Exámenes y tests de repaso'}</p>
+    </div>
+    <input type="file" id="fi" class="file-input" accept=".pdf" multiple onchange="handleFiles(this.files)">
+    <div class="file-list">${files.length?files.map(fileRowHTML).join(''):`<p style="text-align:center;color:var(--muted);font-size:.82rem;padding:16px">Sin archivos en esta categoría</p>`}</div>
+  </div>`;
+}
+
+function setUploadMode(m){uploadMode=m;renderContent();}
+function fileRowHTML(f){return `<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;}
+function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files);}
+
+function handleFiles(files) {
+  const m=state.currentMateria;
+  Array.from(files).forEach(file=>{
+    if(!file.name.toLowerCase().endsWith('.pdf'))return;
+    const reader=new FileReader();
+    reader.onload=async(ev)=>{
+      const f={id:'f_'+Date.now()+Math.random().toString(36).slice(2),name:file.name,size:file.size,type:uploadMode,data:ev.target.result};
+      m.files.push(f);
+      await dbSaveFile(f,m.id);
+      renderContent();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function deleteFile(fid) {
+  state.currentMateria.files=state.currentMateria.files.filter(f=>f.id!==fid);
+  await dbDeleteFile(fid);
+  renderContent();
+}
+
+// ─── TEORIA ──────────────────────────────────────────────────────
+function renderTeoria(c,m) {
+  setTopBar(m.name,'Teoría y leyes');
+  const files=m.files.filter(f=>f.type==='teoria');
+  if(!files.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">📚</div><h3>Sin archivos de teoría</h3><p>Sube PDFs de leyes o apuntes.</p><button class="btn btn-primary" onclick="showView('upload')">📁 Subir archivos</button></div>`;return;}
+  c.innerHTML=`<div class="theory-view"><p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Selecciona un archivo para resumirlo con IA.</p>
+    <div class="pdf-list">${files.map(f=>`<div class="pdf-item"><span class="pdf-icon">📄</span><div class="pdf-info"><div class="pdf-name">${f.name}</div><div class="pdf-meta">${(f.size/1024).toFixed(0)} KB · Teoría</div></div><button class="btn btn-secondary" onclick="summarizeFile('${f.id}')">✨ Resumir con IA</button></div>`).join('')}</div>
+    <div id="summaryArea"></div></div>`;
+}
+
+async function summarizeFile(fid) {
+  const area=document.getElementById('summaryArea');
+  area.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Generando resumen...</h3><p>Claude está analizando el documento</p></div>`;
+  const data=await dbGetFileData(fid);
+  if(!data){area.innerHTML=`<div class="summary-box" style="border-left:3px solid var(--ko)"><h3>Error</h3><p>No se encontraron los datos del archivo en la base de datos.</p></div>`;return;}
+  try {
+    const base64=data.split(',')[1];
+    const resp=await callClaude([{role:'user',content:[
+      {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+      {type:'text',text:'Eres experto en oposiciones C1 de la Xunta de Galicia. Resume este documento de forma estructurada destacando los puntos clave que pueden entrar en examen tipo test. Usa secciones claras y bullets. Responde en español.'}
+    ]}]);
+    area.innerHTML=`<div class="summary-box"><h3>✨ Resumen IA</h3>${resp}</div>`;
+  } catch(e){area.innerHTML=`<div class="summary-box" style="border-left:3px solid var(--ko)"><h3>Error</h3><p>${e.message}</p></div>`;}
+}
+
+// ─── TESTS ───────────────────────────────────────────────────────
+function renderTests(c,m) {
+  setTopBar(m.name,'Tests de práctica');
+  const banco=m.files.filter(f=>f.type==='test').length;
+  const teoria=m.files.filter(f=>f.type==='teoria').length;
+  c.innerHTML=`<div class="test-view">
+    <div class="test-options-grid">
+      <div class="test-option-card" onclick="${banco?"startQuiz('banco')":"alert('Sube primero PDFs de test.')"}">
+        <div class="toc-icon">📋</div><h3>Test de banco</h3>
+        <p>Preguntas de tus PDFs de repaso${banco?` (${banco} archivo${banco>1?'s':''})`:' – Sin archivos'}</p>
+      </div>
+      <div class="test-option-card" onclick="${teoria?"startQuiz('ia')":"alert('Sube primero PDFs de teoría.')"}">
+        <div class="toc-icon">✨</div><h3>Test generado por IA</h3>
+        <p>Preguntas originales de Claude basadas en la teoría${teoria?` (${teoria} archivo${teoria>1?'s':''})`:' – Sin archivos'}</p>
+      </div>
+    </div>
+    ${m.history.length?`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px"><p style="font-size:.82rem;font-weight:700;margin-bottom:8px">Últimas sesiones</p>
+    ${[...m.history].reverse().slice(0,3).map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem">
+      <span style="font-weight:800;color:${h.pct>=70?'var(--ok)':h.pct>=50?'var(--warn)':'var(--ko)'}">${h.pct}%</span>
+      <span>${h.score}/${h.total} · ${h.mode==='ia'?'✨ IA':'📋 Banco'}</span>
+      <span style="margin-left:auto;color:var(--muted)">${h.date}</span>
+    </div>`).join('')}</div>`:''}
+  </div>`;
+}
+
+// ─── QUIZ ENGINE ─────────────────────────────────────────────────
+let quiz={questions:[],current:0,score:0,answered:false,wrongs:[]};
+const LETTERS=['a','b','c','d'];
+
+async function startQuiz(mode) {
+  state.quizMode=mode;
+  const m=state.currentMateria;
+  const c=document.getElementById('content');
+  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>${mode==='ia'?'Generando preguntas con IA...':'Cargando preguntas...'}</h3><p>${mode==='ia'?'Claude está creando preguntas originales basadas en tu teoría':'Extrayendo preguntas de tus archivos de test'}</p></div>`;
+  try {
+    const questions=mode==='ia'?await generateAIQuestions(m):await extractBancoQuestions(m);
+    if(!questions.length)throw new Error('No se pudieron generar preguntas.');
+    quiz={questions:shuffle(questions).slice(0,Math.min(30,questions.length)),current:0,score:0,answered:false,wrongs:[]};
+    state.currentView='quiz';
+    renderSidebar();renderContent();
+  } catch(e){
+    c.innerHTML=`<div class="empty-state"><div class="es-icon">❌</div><h3>Error</h3><p>${e.message}</p><button class="btn btn-primary" onclick="showView('tests')">Volver</button></div>`;
+  }
+}
+
+async function generateAIQuestions(m) {
+  const files=m.files.filter(f=>f.type==='teoria');
+  if(!files.length)throw new Error('No hay archivos de teoría.');
+  const data=await dbGetFileData(files[0].id);
+  if(!data)throw new Error('No se pudieron cargar los datos del archivo.');
+  const base64=data.split(',')[1];
+  const text=await callClaude([{role:'user',content:[
+    {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+    {type:'text',text:`Genera exactamente 15 preguntas tipo test para oposición C1 Xunta de Galicia basadas en este documento. Devuelve SOLO un array JSON válido sin texto adicional ni backticks:
+[{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación breve"}]
+donde ans es el índice (0-3) de la respuesta correcta. Responde en español.`}
+  ]}]);
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+async function extractBancoQuestions(m) {
+  const files=m.files.filter(f=>f.type==='test');
+  if(!files.length)throw new Error('No hay archivos de test.');
+  const f=files[Math.floor(Math.random()*files.length)];
+  const data=await dbGetFileData(f.id);
+  if(!data)throw new Error('No se pudieron cargar los datos del archivo.');
+  const base64=data.split(',')[1];
+  const text=await callClaude([{role:'user',content:[
+    {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+    {type:'text',text:`Extrae TODAS las preguntas tipo test de este documento. Devuelve SOLO un array JSON válido sin backticks:
+[{"q":"pregunta","opts":["opcion a","opcion b","opcion c","opcion d"],"ans":0,"exp":"explicación breve"}]
+donde ans es el índice (0-3) de la respuesta correcta. Omite preguntas sin respuesta clara. Responde en español.`}
+  ]}]);
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+async function callClaude(messages) {
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages})
+  });
+  const d=await resp.json();
+  if(d.error)throw new Error(d.error.message);
+  return (d.content||[]).map(x=>x.text||'').join('');
+}
+
+function renderQuiz(c) {
+  if(quiz.current>=quiz.questions.length){finishQuiz();return;}
+  const q=quiz.questions[quiz.current];
+  const pct=Math.round((quiz.current/quiz.questions.length)*100);
+  setTopBar(state.currentMateria.name,`Test · ${state.quizMode==='ia'?'✨ IA':'📋 Banco'}`);
+  c.innerHTML=`<div class="quiz-wrap">
+    <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+    <div class="progress-label"><span>Pregunta ${quiz.current+1} de ${quiz.questions.length}</span><span class="score-live">✅ ${quiz.score}</span></div>
+    <div class="q-num">Pregunta ${quiz.current+1}</div>
+    <div class="q-text">${q.q}</div>
+    <div class="options">${q.opts.map((opt,i)=>`<button class="opt-btn" onclick="choose(${i})"><span class="letter">${LETTERS[i]})</span><span>${opt}</span></button>`).join('')}</div>
+    <div class="feedback-box" id="fb"></div>
+    <button class="next-btn" id="nb" onclick="nextQ()">${quiz.current+1<quiz.questions.length?'Siguiente →':'Ver resultados'}</button>
+  </div>`;
+}
+
+function choose(i) {
+  if(quiz.answered)return;
+  quiz.answered=true;
+  const q=quiz.questions[quiz.current];
+  document.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);
+  const fb=document.getElementById('fb');
+  if(i===q.ans){
+    quiz.score++;
+    document.querySelectorAll('.opt-btn')[i].classList.add('correct');
+    fb.className='feedback-box show ok';
+    fb.innerHTML=`✅ <strong>¡Correcto!</strong>${q.exp?' '+q.exp:''}`;
+  } else {
+    document.querySelectorAll('.opt-btn')[i].classList.add('incorrect');
+    document.querySelectorAll('.opt-btn')[q.ans].classList.add('reveal');
+    quiz.wrongs.push({...q,chosen:i});
+    fb.className='feedback-box show ko';
+    fb.innerHTML=`❌ <strong>Incorrecto.</strong> Correcta: <strong>${LETTERS[q.ans]}) ${q.opts[q.ans]}</strong>${q.exp?'<br><small>💡 '+q.exp+'</small>':''}`;
+  }
+  document.getElementById('nb').style.display='block';
+}
+
+function nextQ(){quiz.current++;quiz.answered=false;quiz.current>=quiz.questions.length?finishQuiz():renderContent();}
+
+async function finishQuiz() {
+  const pct=Math.round((quiz.score/quiz.questions.length)*100);
+  const entry={score:quiz.score,total:quiz.questions.length,pct,mode:state.quizMode,date:new Date().toLocaleDateString('es-ES')};
+  state.currentMateria.history.push(entry);
+  await dbSaveHistory(state.currentMateria.id,entry);
+  state.currentView='results';
+  renderSidebar();renderContent();
+}
+
+function renderResults(c) {
+  const pct=Math.round((quiz.score/quiz.questions.length)*100);
+  const color=pct>=70?'var(--ok)':pct>=50?'var(--warn)':'var(--ko)';
+  const [g,gc]=pct>=70?['✅ Aprobado','high']:pct>=50?['⚠️ Casi','mid']:['❌ Suspendido','low'];
+  setTopBar(state.currentMateria.name,'Resultado');
+  c.innerHTML=`<div class="results-wrap">
+    <div class="big-score" style="color:${color}">${quiz.score}/${quiz.questions.length}</div>
+    <div class="score-label">${pct}% de acierto</div>
+    <span class="grade-badge ${gc}">${g}</span>
+    <div class="stats-grid">
+      <div class="stat-box ok"><div class="n">${quiz.score}</div><div class="l">Correctas</div></div>
+      <div class="stat-box ko"><div class="n">${quiz.questions.length-quiz.score}</div><div class="l">Incorrectas</div></div>
+      <div class="stat-box tot"><div class="n">${quiz.questions.length}</div><div class="l">Total</div></div>
+    </div>
+    <div class="results-actions">
+      <button class="btn btn-primary" onclick="startQuiz('${state.quizMode}')">🔄 Nuevo test</button>
+      <button class="btn btn-secondary" onclick="showView('tests')">📋 Elegir modo</button>
+    </div>
+    ${quiz.wrongs.length?`<div class="wrong-review"><h3>❌ Repaso de errores (${quiz.wrongs.length})</h3>
+    ${quiz.wrongs.map(w=>`<div class="wrong-item"><div class="wq">${w.q}</div>
+      <div class="w-ans ko">✗ Tu respuesta: ${LETTERS[w.chosen]}) ${w.opts[w.chosen]}</div>
+      <div class="w-ans ok">✓ Correcta: ${LETTERS[w.ans]}) ${w.opts[w.ans]}</div>
+      ${w.exp?`<div class="w-exp">💡 ${w.exp}</div>`:''}</div>`).join('')}</div>`
+    :`<p style="text-align:center;padding:20px;color:var(--ok);font-size:1.5rem">🎉 ¡Perfecto! Sin errores</p>`}
+  </div>`;
+}
+
+function renderHistory(c,m) {
+  setTopBar(m.name,'Historial');
+  if(!m.history.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">📊</div><h3>Sin historial</h3><p>Completa tu primer test.</p><button class="btn btn-primary" onclick="showView('tests')">Ir a Tests</button></div>`;return;}
+  c.innerHTML=`<div class="history-list"><p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">${m.history.length} sesiones</p>
+  ${[...m.history].reverse().map(h=>{
+    const [g,gc]=h.pct>=70?['Aprobado','high']:h.pct>=50?['Casi','mid']:['Suspendido','low'];
+    return `<div class="history-item">
+      <div class="hi-score" style="color:${h.pct>=70?'var(--ok)':h.pct>=50?'var(--warn)':'var(--ko)'}">${h.pct}%</div>
+      <div class="hi-info"><h4>${h.score}/${h.total} correctas</h4><p>${h.mode==='ia'?'✨ IA':'📋 Banco'} · ${h.date}</p></div>
+      <span class="grade-badge ${gc}">${g}</span>
+    </div>`;
+  }).join('')}
+  <button class="btn btn-danger" onclick="clearHistory()">🗑️ Borrar historial</button></div>`;
+}
+
+async function clearHistory() {
+  if(!confirm('¿Borrar todo el historial?'))return;
+  if(sb)await sb.from('historial').delete().eq('materia_id',state.currentMateria.id);
+  state.currentMateria.history=[];
+  renderContent();
+}
+
+function shuffle(arr){let a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+// ─── INIT ────────────────────────────────────────────────────────
+(async()=>{
+  const ok=initSupabase();
+  if(!ok){
+    document.getElementById('content').innerHTML=`<div class="empty-state">
+      <div class="es-icon">⚙️</div>
+      <h3>Configuración necesaria</h3>
+      <p>Esta app necesita conectarse a Supabase. Sigue la guía de instalación para configurar las variables de entorno.</p>
+    </div>`;
+    return;
+  }
+  await dbLoadMaterias();
+  renderSidebar();
+  renderContent();
+})();
+</script>
+</body>
+</html>
