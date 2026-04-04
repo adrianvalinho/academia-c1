@@ -293,6 +293,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   <div class="sidebar-header">
     <span class="logo">🏛️</span>
     <div style="overflow:hidden"><h2>Academia C1</h2><p>Xunta de Galicia</p></div>
+    <svg width="30" height="20" viewBox="0 0 30 20" style="flex-shrink:0;border-radius:3px;border:1px solid rgba(255,255,255,.2)" aria-label="Bandeira de Galicia"><rect width="30" height="20" fill="#fff"/><polygon points="0,0 11,0 30,20 19,20" fill="#003DA5"/></svg>
     <button class="sidebar-toggle" onclick="toggleSidebar()">◀</button>
   </div>
   <button class="add-materia-btn" onclick="openModal()"><span>＋</span><span>Nueva materia</span></button>
@@ -366,31 +367,72 @@ async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache
 async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_cache').delete().eq('materia_id',mid);}
 
 // ── AUDIO ENGINE ──
-let audioCtx=null,musicNodes=[],musicOn=true;
+let audioCtx=null,musicNodes=[],musicOn=true,himnoPlayed=false;
 function initAudio(){if(audioCtx)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+
+// Himno gallego en primera interacción
+function playHimnoGallego(){
+  if(himnoPlayed)return;himnoPlayed=true;
+  initAudio();
+  // Melodía aproximada de "Os Pinos" en Si bemol mayor
+  const t=audioCtx.currentTime;
+  const notes=[
+    [392,0,.45],[392,.45,.25],[440,.7,.45],[392,1.15,.25],
+    [349,1.4,.45],[329,1.85,.55],[294,2.4,.45],
+    [329,2.85,.4],[349,3.25,.4],[392,3.65,.55]
+  ];
+  notes.forEach(([freq,start,dur])=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';o.frequency.setValueAtTime(freq,t+start);
+    g.gain.setValueAtTime(0,t+start);
+    g.gain.linearRampToValueAtTime(0.18,t+start+0.03);
+    g.gain.exponentialRampToValueAtTime(0.001,t+start+dur+0.08);
+    o.connect(g);g.connect(audioCtx.destination);
+    o.start(t+start);o.stop(t+start+dur+0.1);
+    // Armónico suave
+    const o2=audioCtx.createOscillator(),g2=audioCtx.createGain();
+    o2.type='sine';o2.frequency.setValueAtTime(freq*2,t+start);
+    g2.gain.setValueAtTime(0,t+start);g2.gain.linearRampToValueAtTime(0.04,t+start+0.03);
+    g2.gain.exponentialRampToValueAtTime(0.001,t+start+dur);
+    o2.connect(g2);g2.connect(audioCtx.destination);o2.start(t+start);o2.stop(t+start+dur+0.1);
+  });
+}
+document.addEventListener('click',function onFirstClick(){
+  document.removeEventListener('click',onFirstClick);
+  playHimnoGallego();
+},{once:true});
+
+// Música zen para el simulacro
 function startSimMusic(){
   if(!musicOn||!audioCtx)return;
   stopSimMusic();
-  const master=audioCtx.createGain();master.gain.setValueAtTime(0.08,audioCtx.currentTime);master.connect(audioCtx.destination);
-  // Ominous drone
-  [55,82.4,110].forEach((freq,i)=>{
+  const master=audioCtx.createGain();master.gain.setValueAtTime(0.07,audioCtx.currentTime);master.connect(audioCtx.destination);
+  // Drones tranquilos con LFO de respiración
+  [[128,0.08],[192,0.05],[256,0.03]].forEach(([freq,vol])=>{
     const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-    o.type=i===0?'sawtooth':'sine';o.frequency.setValueAtTime(freq,audioCtx.currentTime);
-    g.gain.setValueAtTime(i===0?0.4:0.2,audioCtx.currentTime);
-    o.connect(g);g.connect(master);o.start();musicNodes.push(o,g);
+    o.type='sine';o.frequency.setValueAtTime(freq,audioCtx.currentTime);
+    g.gain.setValueAtTime(vol,audioCtx.currentTime);
+    const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+    lfo.frequency.setValueAtTime(0.08+Math.random()*0.04,audioCtx.currentTime);
+    lg.gain.setValueAtTime(vol*0.4,audioCtx.currentTime);
+    lfo.connect(lg);lg.connect(g.gain);lfo.start();
+    o.connect(g);g.connect(master);o.start();
+    musicNodes.push(o,g,lfo,lg);
   });
-  // Heartbeat
-  function beat(){
+  // Gotas de agua suaves
+  function gota(){
     if(!audioCtx||musicNodes.length===0)return;
+    const freq=500+Math.random()*600;
     const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-    o.frequency.setValueAtTime(60,audioCtx.currentTime);g.gain.setValueAtTime(0,audioCtx.currentTime);
-    g.gain.linearRampToValueAtTime(0.5,audioCtx.currentTime+0.05);
-    g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+0.15);
-    o.connect(g);g.connect(master);o.start();o.stop(audioCtx.currentTime+0.2);
-    setTimeout(()=>{if(musicNodes.length>0){const o2=audioCtx.createOscillator(),g2=audioCtx.createGain();o2.frequency.setValueAtTime(55,audioCtx.currentTime);g2.gain.setValueAtTime(0,audioCtx.currentTime);g2.gain.linearRampToValueAtTime(0.3,audioCtx.currentTime+0.05);g2.gain.linearRampToValueAtTime(0,audioCtx.currentTime+0.15);o2.connect(g2);g2.connect(master);o2.start();o2.stop(audioCtx.currentTime+0.2);}},180);
-    if(musicNodes.length>0)setTimeout(beat,1000+Math.random()*500);
+    o.type='sine';o.frequency.setValueAtTime(freq,audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(freq*0.7,audioCtx.currentTime+0.4);
+    g.gain.setValueAtTime(0,audioCtx.currentTime);
+    g.gain.linearRampToValueAtTime(0.04,audioCtx.currentTime+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.5);
+    o.connect(g);g.connect(master);o.start();o.stop(audioCtx.currentTime+0.6);
+    if(musicNodes.length>0)setTimeout(gota,2500+Math.random()*4000);
   }
-  beat();
+  gota();
   musicNodes.push(master);
 }
 function stopSimMusic(){musicNodes.forEach(n=>{try{if(n.stop)n.stop();if(n.disconnect)n.disconnect();}catch(e){}});musicNodes=[];}
@@ -488,7 +530,7 @@ function renderSimLaunch(c){
       </div>
     </div>
     <label class="sim-music-toggle">
-      <input type="checkbox" id="musicToggle" checked onchange="musicOn=this.checked"> 🎵 Música de tensión
+      <input type="checkbox" id="musicToggle" checked onchange="musicOn=this.checked"> 🎵 Música zen
     </label>
     <br><br>
     <button class="sim-start-btn" onclick="launchSimulacro()">⚔ COMENZAR SIMULACRO</button>
@@ -761,7 +803,15 @@ function renderTeoria(c,m){
   setTopBar(m.name,'Teoría y leyes');
   const files=m.files.filter(f=>f.type==='teoria');
   if(!files.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">📚</div><h3>Sin archivos de teoría</h3><p>Sube PDFs de leyes o apuntes.</p><button class="btn btn-primary" onclick="showView('upload')">📁 Subir archivos</button></div>`;return;}
-  c.innerHTML=`<div class="theory-view">${m.temario?`<div class="temario-hint"><strong>📌 Temario configurado:</strong>${m.temario}</div>`:''}<p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Selecciona un archivo para resumirlo con IA.</p><div class="pdf-list">${files.map(f=>`<div class="pdf-item"><span class="pdf-icon">📄</span><div class="pdf-info"><div class="pdf-name">${f.name}</div><div class="pdf-meta">${(f.size/1024).toFixed(0)} KB</div></div><button class="btn btn-secondary" onclick="summarizeFile('${f.id}')">✨ Resumir con IA</button></div>`).join('')}</div><div id="summaryArea"></div></div>`;
+  c.innerHTML=`<div class="theory-view">${m.temario?`<div class="temario-hint"><strong>📌 Temario configurado:</strong>${m.temario}</div>`:''}<p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Selecciona un archivo para resumirlo con IA o verlo directamente.</p><div class="pdf-list">${files.map(f=>`<div class="pdf-item"><span class="pdf-icon">📄</span><div class="pdf-info"><div class="pdf-name">${f.name}</div><div class="pdf-meta">${(f.size/1024).toFixed(0)} KB</div></div><div style="display:flex;gap:8px"><button class="btn btn-secondary" onclick="viewPDF('${f.id}')">📄 Ver PDF</button><button class="btn btn-secondary" onclick="summarizeFile('${f.id}')">✨ Resumir con IA</button></div></div>`).join('')}</div><div id="summaryArea"></div></div>`;
+}
+
+async function viewPDF(fid){
+  const area=document.getElementById('summaryArea');
+  area.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Cargando PDF...</h3></div>`;
+  const data=await dbGetFileData(fid);
+  if(!data){area.innerHTML=`<div class="summary-box" style="border-left:3px solid var(--ko)"><h3>Error</h3><p>No se encontraron datos del archivo.</p></div>`;return;}
+  area.innerHTML=`<div style="margin-top:16px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--white)"><div style="padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><span style="font-size:.82rem;color:var(--muted)">📄 Visor de PDF</span><button class="btn btn-secondary" style="padding:4px 10px;font-size:.78rem" onclick="document.getElementById('summaryArea').innerHTML=''">✕ Cerrar</button></div><iframe src="${data}" style="width:100%;height:75vh;border:none"></iframe></div>`;
 }
 
 async function summarizeFile(fid){
