@@ -514,7 +514,7 @@ async function launchSimulacro(){
 }
 
 async function buildSimulacroQuestions(total){
-  const materiasConArchivos=state.materias.filter(m=>m.files.length>0);
+  const materiasConArchivos=state.materias.filter(m=>(m.files||[]).some(f=>f.type==='test'||f.type==='teoria'));
   if(!materiasConArchivos.length)throw new Error('No hay materias con archivos subidos.');
   const pesos=materiasConArchivos.map(m=>({m,peso:m.files.length}));
   const totalPeso=pesos.reduce((a,p)=>a+p.peso,0);
@@ -544,8 +544,8 @@ async function generateSimQuestions(m,n){
     const needed=n-pool.length;
     const perFile=Math.min(MAX_PER_CALL,Math.max(1,Math.ceil(needed/files.length)));
     const results=await Promise.all(files.map(async f=>{
-      const data=await dbGetFileData(f.id);if(!data)return[];
       try{
+        const data=await dbGetFileData(f.id);if(!data)return[];
         const text=await callClaude([{role:'user',content:[
           {type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},
           {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${ti}
