@@ -290,11 +290,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 <div class="simulacro-overlay" id="simOverlay" style="display:none"></div>
 
 <nav id="sidebar">
-  <div class="sidebar-header">
-    <span class="logo">🏛️</span>
-    <div style="overflow:hidden"><h2>Academia C1</h2><p>Xunta de Galicia</p></div>
-    <svg width="30" height="20" viewBox="0 0 30 20" style="flex-shrink:0;border-radius:3px;border:1px solid rgba(255,255,255,.2)" aria-label="Bandeira de Galicia"><rect width="30" height="20" fill="#fff"/><polygon points="0,0 11,0 30,20 19,20" fill="#003DA5"/></svg>
-    <button class="sidebar-toggle" onclick="toggleSidebar()">◀</button>
+  <div class="sidebar-header" style="flex-direction:column;align-items:stretch;gap:6px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="logo">🏛️</span>
+      <div style="overflow:hidden"><h2>Academia C1</h2><p>Xunta de Galicia</p></div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()">◀</button>
+    </div>
+    <svg width="70" height="50" viewBox="0 0 70 50" style="align-self:center;border-radius:4px;border:1px solid rgba(255,255,255,.2);overflow:hidden" aria-label="Estreleira galega">
+      <rect width="70" height="50" fill="#fff"/>
+      <polygon points="5,-7 -5,7 65,57 75,43" fill="#87CEEB"/>
+      <polygon points="35,17 37.1,22.2 42.6,22.5 38.3,26.1 39.7,31.5 35,28.5 30.3,31.5 31.7,26.1 27.4,22.5 32.9,22.2" fill="#C00"/>
+    </svg>
   </div>
   <button class="add-materia-btn" onclick="openModal()"><span>＋</span><span>Nueva materia</span></button>
   <button class="simulacro-btn" onclick="goSimulacro()"><span>💀</span><span>Simulacro general</span></button>
@@ -361,7 +367,7 @@ async function dbSaveSimHistorial(entry){if(sb){try{await sb.from('sim_historial
 async function dbGetFileData(fid){if(!sb)return null;const{data}=await sb.from('archivos').select('data').eq('id',fid).single();return data?.data||null;}
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
 async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));await sb.from('preguntas_cache').insert(rows);}
-async function dbGetCachedQuestions(mid,count){if(!sb)return[];const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).limit(500);if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
+async function dbGetCachedQuestions(mid,count){if(!sb)return[];const asc=Math.random()>.5;const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).order('id',{ascending:asc}).limit(count*3);if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
 async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);return count||0;}
 async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
 async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_cache').delete().eq('materia_id',mid);}
@@ -370,31 +376,27 @@ async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_ca
 let audioCtx=null,musicNodes=[],musicOn=true,himnoPlayed=false;
 function initAudio(){if(audioCtx)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
 
-// Himno gallego en primera interacción
+// Himno gallego en primera interacción (gaita: sawtooth + filtro paso-bajo)
 function playHimnoGallego(){
   if(himnoPlayed)return;himnoPlayed=true;
   initAudio();
-  // Melodía aproximada de "Os Pinos" en Si bemol mayor
+  // Mi4-Mi4-Sol4-Mi4-Re4-Do4-Re4-Mi4-Sol4-Mi4-Re4-Do4
+  const freqs=[329.63,329.63,392,329.63,293.66,261.63,293.66,329.63,392,329.63,293.66,261.63];
   const t=audioCtx.currentTime;
-  const notes=[
-    [392,0,.45],[392,.45,.25],[440,.7,.45],[392,1.15,.25],
-    [349,1.4,.45],[329,1.85,.55],[294,2.4,.45],
-    [329,2.85,.4],[349,3.25,.4],[392,3.65,.55]
-  ];
-  notes.forEach(([freq,start,dur])=>{
+  const filter=audioCtx.createBiquadFilter();
+  filter.type='lowpass';filter.frequency.setValueAtTime(800,t);filter.Q.setValueAtTime(10,t);
+  const masterG=audioCtx.createGain();masterG.gain.setValueAtTime(0.28,t);
+  masterG.connect(filter);filter.connect(audioCtx.destination);
+  freqs.forEach((freq,i)=>{
+    const s=t+i*0.8;
     const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-    o.type='sine';o.frequency.setValueAtTime(freq,t+start);
-    g.gain.setValueAtTime(0,t+start);
-    g.gain.linearRampToValueAtTime(0.18,t+start+0.03);
-    g.gain.exponentialRampToValueAtTime(0.001,t+start+dur+0.08);
-    o.connect(g);g.connect(audioCtx.destination);
-    o.start(t+start);o.stop(t+start+dur+0.1);
-    // Armónico suave
-    const o2=audioCtx.createOscillator(),g2=audioCtx.createGain();
-    o2.type='sine';o2.frequency.setValueAtTime(freq*2,t+start);
-    g2.gain.setValueAtTime(0,t+start);g2.gain.linearRampToValueAtTime(0.04,t+start+0.03);
-    g2.gain.exponentialRampToValueAtTime(0.001,t+start+dur);
-    o2.connect(g2);g2.connect(audioCtx.destination);o2.start(t+start);o2.stop(t+start+dur+0.1);
+    o.type='sawtooth';o.frequency.setValueAtTime(freq,s);
+    g.gain.setValueAtTime(0,s);
+    g.gain.linearRampToValueAtTime(0.7,s+0.02);
+    g.gain.setValueAtTime(0.7,s+0.72);
+    g.gain.linearRampToValueAtTime(0,s+0.8);
+    o.connect(g);g.connect(masterG);
+    o.start(s);o.stop(s+0.82);
   });
 }
 document.addEventListener('click',function onFirstClick(){
@@ -402,37 +404,48 @@ document.addEventListener('click',function onFirstClick(){
   playHimnoGallego();
 },{once:true});
 
-// Música zen para el simulacro
+// Música zen para el simulacro: drone + agua filtrada + pájaros
 function startSimMusic(){
   if(!musicOn||!audioCtx)return;
   stopSimMusic();
-  const master=audioCtx.createGain();master.gain.setValueAtTime(0.07,audioCtx.currentTime);master.connect(audioCtx.destination);
-  // Drones tranquilos con LFO de respiración
-  [[128,0.08],[192,0.05],[256,0.03]].forEach(([freq,vol])=>{
-    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-    o.type='sine';o.frequency.setValueAtTime(freq,audioCtx.currentTime);
-    g.gain.setValueAtTime(vol,audioCtx.currentTime);
-    const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
-    lfo.frequency.setValueAtTime(0.08+Math.random()*0.04,audioCtx.currentTime);
-    lg.gain.setValueAtTime(vol*0.4,audioCtx.currentTime);
-    lfo.connect(lg);lg.connect(g.gain);lfo.start();
-    o.connect(g);g.connect(master);o.start();
-    musicNodes.push(o,g,lfo,lg);
-  });
-  // Gotas de agua suaves
-  function gota(){
+  const ac=audioCtx,now=ac.currentTime;
+  const master=ac.createGain();master.gain.setValueAtTime(0.5,now);master.connect(ac.destination);
+
+  // 1. Drone suave 80Hz
+  const drone=ac.createOscillator(),droneG=ac.createGain();
+  drone.type='sine';drone.frequency.setValueAtTime(80,now);
+  droneG.gain.setValueAtTime(0.08,now);
+  drone.connect(droneG);droneG.connect(master);drone.start();
+  musicNodes.push(drone,droneG);
+
+  // 2. Agua: ruido blanco → filtro paso-bajo 400Hz + LFO lento
+  const bufLen=ac.sampleRate*3;
+  const noiseBuf=ac.createBuffer(1,bufLen,ac.sampleRate);
+  const nd=noiseBuf.getChannelData(0);for(let i=0;i<bufLen;i++)nd[i]=Math.random()*2-1;
+  const noiseSrc=ac.createBufferSource();noiseSrc.buffer=noiseBuf;noiseSrc.loop=true;
+  const nFilt=ac.createBiquadFilter();nFilt.type='lowpass';nFilt.frequency.setValueAtTime(400,now);
+  const nGain=ac.createGain();nGain.gain.setValueAtTime(0.06,now);
+  const lfo=ac.createOscillator(),lfoG=ac.createGain();
+  lfo.frequency.setValueAtTime(0.12,now);lfoG.gain.setValueAtTime(180,now);
+  lfo.connect(lfoG);lfoG.connect(nFilt.frequency);lfo.start();
+  noiseSrc.connect(nFilt);nFilt.connect(nGain);nGain.connect(master);noiseSrc.start();
+  musicNodes.push(noiseSrc,nFilt,nGain,lfo,lfoG);
+
+  // 3. Pájaros: osciladores breves 2000-4000Hz cada 2-4 segundos
+  function pajaro(){
     if(!audioCtx||musicNodes.length===0)return;
-    const freq=500+Math.random()*600;
-    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-    o.type='sine';o.frequency.setValueAtTime(freq,audioCtx.currentTime);
-    o.frequency.exponentialRampToValueAtTime(freq*0.7,audioCtx.currentTime+0.4);
-    g.gain.setValueAtTime(0,audioCtx.currentTime);
-    g.gain.linearRampToValueAtTime(0.04,audioCtx.currentTime+0.01);
-    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.5);
-    o.connect(g);g.connect(master);o.start();o.stop(audioCtx.currentTime+0.6);
-    if(musicNodes.length>0)setTimeout(gota,2500+Math.random()*4000);
+    const freq=2000+Math.random()*2000;
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type='sine';
+    o.frequency.setValueAtTime(freq,ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(freq*(1.1+Math.random()*0.3),ac.currentTime+0.12);
+    g.gain.setValueAtTime(0,ac.currentTime);
+    g.gain.linearRampToValueAtTime(0.1,ac.currentTime+0.04);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.28);
+    o.connect(g);g.connect(master);o.start();o.stop(ac.currentTime+0.32);
+    if(musicNodes.length>0)setTimeout(pajaro,2000+Math.random()*2000);
   }
-  gota();
+  setTimeout(pajaro,800+Math.random()*1500);
   musicNodes.push(master);
 }
 function stopSimMusic(){musicNodes.forEach(n=>{try{if(n.stop)n.stop();if(n.disconnect)n.disconnect();}catch(e){}});musicNodes=[];}
@@ -850,17 +863,29 @@ const LETTERS=['a','b','c','d'];
 
 async function startQuiz(mode){
   state.quizMode=mode;const m=state.currentMateria;const c=document.getElementById('content');
-  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Cargando preguntas...</h3></div>`;
+  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>${m.questionCount?'Cargando preguntas...':'Generando preguntas con IA...'}</h3></div>`;
   try{
     let questions=await dbGetCachedQuestions(m.id,30);
     if(questions.length<10){
-      // Caché vacía: generar y guardar primero, Gemini solo se llama aquí
+      // Caché vacía: generación rápida (1 llamada/archivo en paralelo) + guardar en caché sin bloquear
       const files=m.files.filter(f=>f.type==='test'||f.type==='teoria');
       if(!files.length)throw new Error('Sube archivos antes de hacer el test.');
-      c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Generando banco de preguntas...</h3><p>Solo ocurre la primera vez</p></div>`;
-      await Promise.all(files.map(f=>generateAndCacheQuestions(f,m,true)));
-      m.questionCount=await dbCountCachedQuestions(m.id);
-      questions=await dbGetCachedQuestions(m.id,30);
+      const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}.`:'Genera preguntas variadas.';
+      const results=await Promise.all(files.map(async f=>{
+        const data=await dbGetFileData(f.id);if(!data)return[];
+        const base64=data.split(',')[1];
+        try{
+          const text=await callClaude([{role:'user',content:[
+            {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+            {type:'text',text:`Eres experto en oposiciones C1 Xunta de Galicia. ${ti} Genera exactamente 30 preguntas tipo test. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}
+          ]}]);
+          const qs=parseQuestions(text);
+          if(qs.length)dbSaveQuestions(m.id,f.id,qs);// guardar en caché (sin await, no bloquea)
+          return qs;
+        }catch(_){return[];}
+      }));
+      questions=shuffle(results.flat());
+      dbCountCachedQuestions(m.id).then(n=>m.questionCount=n);
     }
     if(!questions.length)throw new Error('No se pudieron generar preguntas.');
     quiz={questions:shuffle(questions).slice(0,Math.min(30,questions.length)),current:0,score:0,answered:false,wrongs:[]};
