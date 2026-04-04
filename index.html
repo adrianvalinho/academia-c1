@@ -602,36 +602,26 @@ async function buildSimulacroQuestions(total){
 }
 
 async function generateSimQuestions(m,n){
-  // Try cache first — instant
+  // Cache primero — si hay suficiente, retorno inmediato sin Gemini
   const cached=await dbGetCachedQuestions(m.id,n);
-  if(cached.length>=n)return cached;
-  if(cached.length>0)return cached; // partial cache, use what we have
-  // Cache vacío: generar con Gemini
+  if(cached.length>0)return cached;
+  // Sin caché: una sola tanda paralela por archivo, sin rondas secuenciales
   const files=[...m.files.filter(f=>f.type==='test'),...m.files.filter(f=>f.type==='teoria')];
   if(!files.length)return[];
   const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}. No hagas preguntas de otras partes.`:'Genera preguntas variadas de todo el documento.';
-  const MAX_PER_CALL=20;
-  let pool=[];let round=0;
-  while(pool.length<n&&round<3){
-    const needed=n-pool.length;
-    const perFile=Math.min(MAX_PER_CALL,Math.max(1,Math.ceil(needed/files.length)));
-    const results=await Promise.all(files.map(async f=>{
-      try{
-        const data=await dbGetFileData(f.id);if(!data)return[];
-        const text=await callClaude([{role:'user',content:[
-          {type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},
-          {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${ti}
+  const perFile=Math.max(n,Math.ceil(n/files.length)+5);// pedir un poco más para tener margen
+  const results=await Promise.allSettled(files.map(async f=>{
+    const data=await dbGetFileData(f.id);if(!data)return[];
+    const text=await callClaude([{role:'user',content:[
+      {type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},
+      {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${ti}
 Genera exactamente ${perFile} preguntas tipo test para un simulacro oficial de examen. Devuelve SOLO un array JSON sin backticks:
 [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación breve"}]
 donde ans es índice (0-3) de la respuesta correcta. Preguntas precisas, opciones plausibles. Responde en español.`}
-        ]}]);
-        return parseQuestions(text);
-      }catch(_){return[];}
-    }));
-    const nuevas=results.flat().filter(q=>!pool.some(p=>p.q===q.q));
-    if(!nuevas.length)break;
-    pool=[...pool,...nuevas];round++;
-  }
+    ]}]);
+    return parseQuestions(text);
+  }));
+  const pool=results.flatMap(r=>r.status==='fulfilled'?r.value:[]);
   return shuffle(pool).slice(0,n);
 }
 
