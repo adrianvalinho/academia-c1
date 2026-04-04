@@ -1,4 +1,4 @@
-// v7 - gemini-2.5-flash - thinking disabled, non-thought part extraction
+// v8 - gemini-2.0-flash
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -14,13 +14,13 @@ export default async function handler(req, res) {
     parts.push({ text: prompt });
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ role: 'user', parts }],
-          generationConfig: { maxOutputTokens: 8192, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } }
+          generationConfig: { maxOutputTokens: 8192, temperature: 0.7 }
         })
       }
     );
@@ -31,8 +31,7 @@ export default async function handler(req, res) {
     catch(e) { throw new Error('Gemini error: ' + raw.slice(0, 300)); }
 
     if (data.error) throw new Error(data.error.message);
-    const responseParts = data.candidates?.[0]?.content?.parts || [];
-    const text = (responseParts.find(p => !p.thought) || responseParts[0])?.text || '';
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     res.status(200).json({ content: [{ type: 'text', text }] });
 
   } catch (e) {

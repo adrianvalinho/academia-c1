@@ -850,11 +850,17 @@ const LETTERS=['a','b','c','d'];
 
 async function startQuiz(mode){
   state.quizMode=mode;const m=state.currentMateria;const c=document.getElementById('content');
-  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>${m.questionCount?'Cargando preguntas...':'Generando preguntas con IA...'}</h3></div>`;
+  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Cargando preguntas...</h3></div>`;
   try{
     let questions=await dbGetCachedQuestions(m.id,30);
     if(questions.length<10){
-      questions=mode==='ia'?await generateAIQuestions(m):await extractBancoQuestions(m);
+      // Caché vacía: generar y guardar primero, Gemini solo se llama aquí
+      const files=m.files.filter(f=>f.type==='test'||f.type==='teoria');
+      if(!files.length)throw new Error('Sube archivos antes de hacer el test.');
+      c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Generando banco de preguntas...</h3><p>Solo ocurre la primera vez</p></div>`;
+      await Promise.all(files.map(f=>generateAndCacheQuestions(f,m,true)));
+      m.questionCount=await dbCountCachedQuestions(m.id);
+      questions=await dbGetCachedQuestions(m.id,30);
     }
     if(!questions.length)throw new Error('No se pudieron generar preguntas.');
     quiz={questions:shuffle(questions).slice(0,Math.min(30,questions.length)),current:0,score:0,answered:false,wrongs:[]};
@@ -890,13 +896,13 @@ async function extractBancoQuestions(m){
   return all.slice(0,30);
 }
 
-async function generateAndCacheQuestions(file,materia){
+async function generateAndCacheQuestions(file,materia,quiet=false){
   const fileObj=materia.files.find(x=>x.id===file.id);
   if(fileObj)fileObj._generating=true;
-  renderContent();
+  if(!quiet)renderContent();
   try{
     const data=await dbGetFileData(file.id);
-    if(!data){if(fileObj)delete fileObj._generating;renderContent();return;}
+    if(!data){if(fileObj)delete fileObj._generating;if(!quiet)renderContent();return;}
     const base64=data.split(',')[1];
     const ti=materia.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${materia.temario}.`:'Genera preguntas variadas.';
     // 5 llamadas paralelas de 20 = hasta 100 preguntas
@@ -913,7 +919,7 @@ async function generateAndCacheQuestions(file,materia){
     if(m)m.questionCount=(m.questionCount||0)+unique.length;
   }finally{
     if(fileObj)delete fileObj._generating;
-    renderContent();
+    if(!quiet)renderContent();
   }
 }
 
