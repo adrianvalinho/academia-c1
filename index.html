@@ -539,19 +539,22 @@ async function buildSimulacroQuestions(total){
 async function generateSimQuestions(m,n){
   const files=[...m.files.filter(f=>f.type==='test'),...m.files.filter(f=>f.type==='teoria')];
   if(!files.length)return[];
-  const f=files[0];
-  const data=await dbGetFileData(f.id);
-  if(!data)return[];
-  const base64=data.split(',')[1];
-  const temarioInstruccion=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}. No hagas preguntas de otras partes.`:'Genera preguntas variadas de todo el documento.';
-  const text=await callClaude([{role:'user',content:[
-    {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
-    {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${temarioInstruccion}
-Genera exactamente ${n} preguntas tipo test para un simulacro oficial de examen. Devuelve SOLO un array JSON sin backticks:
+  const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}. No hagas preguntas de otras partes.`:'Genera preguntas variadas de todo el documento.';
+  const perFile=Math.max(5,Math.ceil(n/files.length));
+  const results=await Promise.all(files.map(async f=>{
+    const data=await dbGetFileData(f.id);if(!data)return[];
+    try{
+      const text=await callClaude([{role:'user',content:[
+        {type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},
+        {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${ti}
+Genera exactamente ${perFile} preguntas tipo test para un simulacro oficial de examen. Devuelve SOLO un array JSON sin backticks:
 [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación breve"}]
 donde ans es índice (0-3) de la respuesta correcta. Preguntas precisas, opciones plausibles. Responde en español.`}
-  ]}]);
-  return parseQuestions(text);
+      ]}]);
+      return parseQuestions(text);
+    }catch(_){return[];}
+  }));
+  return shuffle(results.flat()).slice(0,n);
 }
 
 // ── TIMER ──
@@ -777,33 +780,30 @@ async function startQuiz(mode){
 
 async function generateAIQuestions(m){
   const files=m.files.filter(f=>f.type==='teoria');if(!files.length)throw new Error('No hay archivos de teoría.');
-  const total=30,n=files.length,base=Math.floor(total/n),rem=total%n;
   const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}.`:'Genera preguntas variadas.';
-  const results=await Promise.all(files.map(async(f,i)=>{
-    const count=base+(i<rem?1:0);
+  const perFile=Math.max(10,Math.ceil(30/files.length));
+  const results=await Promise.all(files.map(async f=>{
     const data=await dbGetFileData(f.id);if(!data)return[];
     try{
-      const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Eres experto en oposiciones C1 Xunta de Galicia. ${ti} Genera exactamente ${count} preguntas tipo test. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
+      const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Eres experto en oposiciones C1 Xunta de Galicia. ${ti} Genera exactamente ${perFile} preguntas tipo test. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
       return parseQuestions(text);
     }catch(_){return[];}
   }));
-  const all=results.flat();if(!all.length)throw new Error('No se pudieron generar preguntas.');
-  return all;
+  const all=shuffle(results.flat());if(!all.length)throw new Error('No se pudieron generar preguntas.');
+  return all.slice(0,30);
 }
 
 async function extractBancoQuestions(m){
   const files=m.files.filter(f=>f.type==='test');if(!files.length)throw new Error('No hay archivos de test.');
-  const total=30,n=files.length,base=Math.floor(total/n),rem=total%n;
-  const results=await Promise.all(files.map(async(f,i)=>{
-    const count=base+(i<rem?1:0);
+  const results=await Promise.all(files.map(async f=>{
     const data=await dbGetFileData(f.id);if(!data)return[];
     try{
-      const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Extrae TODAS las preguntas tipo test de este documento. Si hay menos de ${count}, genera preguntas adicionales del mismo tipo y dificultad hasta completar exactamente ${count}. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
+      const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},{type:'text',text:`Extrae TODAS las preguntas tipo test de este documento. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}]}]);
       return parseQuestions(text);
     }catch(_){return[];}
   }));
-  const all=results.flat();if(!all.length)throw new Error('No se pudieron extraer preguntas del banco.');
-  return all;
+  const all=shuffle(results.flat());if(!all.length)throw new Error('No se pudieron extraer preguntas del banco.');
+  return all.slice(0,30);
 }
 
 async function extractTextFromBase64PDF(base64){
