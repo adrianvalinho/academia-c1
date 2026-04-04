@@ -516,45 +516,52 @@ async function launchSimulacro(){
 async function buildSimulacroQuestions(total){
   const materiasConArchivos=state.materias.filter(m=>m.files.length>0);
   if(!materiasConArchivos.length)throw new Error('No hay materias con archivos subidos.');
-  // Calcular pesos por volumen de archivos
   const pesos=materiasConArchivos.map(m=>({m,peso:m.files.length}));
   const totalPeso=pesos.reduce((a,p)=>a+p.peso,0);
   const reparto=pesos.map(p=>({m:p.m,n:Math.max(1,Math.round((p.peso/totalPeso)*total))}));
-  // Ajustar para que sume exactamente total
-  let suma=reparto.reduce((a,r)=>a+r.n,0);
-  let i=0;while(suma<total){reparto[i%reparto.length].n++;suma++;i++;}
+  let suma=reparto.reduce((a,r)=>a+r.n,0),i=0;
+  while(suma<total){reparto[i%reparto.length].n++;suma++;i++;}
   while(suma>total){reparto[i%reparto.length].n=Math.max(1,reparto[i%reparto.length].n-1);suma--;i++;}
-
-  const allQuestions=[];
-  for(const{m,n} of reparto){
+  // Todas las materias en paralelo
+  const results=await Promise.all(reparto.map(async({m,n})=>{
     try{
       const qs=await generateSimQuestions(m,n);
       qs.forEach(q=>{q._materia=m.name;q._materiaIcon=m.icon;});
-      allQuestions.push(...qs);
-    }catch(e){console.warn(`Error en ${m.name}:`,e);}
-  }
-  return allQuestions;
+      return qs;
+    }catch(e){console.warn(`Error en ${m.name}:`,e);return[];}
+  }));
+  return results.flat();
 }
 
 async function generateSimQuestions(m,n){
   const files=[...m.files.filter(f=>f.type==='test'),...m.files.filter(f=>f.type==='teoria')];
   if(!files.length)return[];
   const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}. No hagas preguntas de otras partes.`:'Genera preguntas variadas de todo el documento.';
-  const perFile=Math.max(5,Math.ceil(n/files.length));
-  const results=await Promise.all(files.map(async f=>{
-    const data=await dbGetFileData(f.id);if(!data)return[];
-    try{
-      const text=await callClaude([{role:'user',content:[
-        {type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},
-        {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${ti}
+  const MAX_PER_CALL=20; // límite seguro de tokens por llamada
+  let pool=[];
+  let round=0;
+  while(pool.length<n&&round<3){
+    const needed=n-pool.length;
+    const perFile=Math.min(MAX_PER_CALL,Math.max(1,Math.ceil(needed/files.length)));
+    const results=await Promise.all(files.map(async f=>{
+      const data=await dbGetFileData(f.id);if(!data)return[];
+      try{
+        const text=await callClaude([{role:'user',content:[
+          {type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},
+          {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${ti}
 Genera exactamente ${perFile} preguntas tipo test para un simulacro oficial de examen. Devuelve SOLO un array JSON sin backticks:
 [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación breve"}]
 donde ans es índice (0-3) de la respuesta correcta. Preguntas precisas, opciones plausibles. Responde en español.`}
-      ]}]);
-      return parseQuestions(text);
-    }catch(_){return[];}
-  }));
-  return shuffle(results.flat()).slice(0,n);
+        ]}]);
+        return parseQuestions(text);
+      }catch(_){return[];}
+    }));
+    const nuevas=results.flat().filter(q=>!pool.some(p=>p.q===q.q));
+    if(!nuevas.length)break; // sin progreso, parar
+    pool=[...pool,...nuevas];
+    round++;
+  }
+  return shuffle(pool).slice(0,n);
 }
 
 // ── TIMER ──
