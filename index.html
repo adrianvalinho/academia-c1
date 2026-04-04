@@ -343,7 +343,9 @@ async function dbLoadMaterias(){
   const{data:mats}=await sb.from('materias').select('*').order('created_at');
   const{data:files}=await sb.from('archivos').select('id,materia_id,name,size,type');
   const{data:hist}=await sb.from('historial').select('*').order('created_at');
-  state.materias=(mats||[]).map(m=>({...m,files:(files||[]).filter(f=>f.materia_id===m.id).map(f=>({...f,data:null})),history:(hist||[]).filter(h=>h.materia_id===m.id)}));
+  const{data:qrows}=await sb.from('preguntas_cache').select('materia_id');
+  const qcount={};(qrows||[]).forEach(r=>{qcount[r.materia_id]=(qcount[r.materia_id]||0)+1;});
+  state.materias=(mats||[]).map(m=>({...m,files:(files||[]).filter(f=>f.materia_id===m.id).map(f=>({...f,data:null})),history:(hist||[]).filter(h=>h.materia_id===m.id),questionCount:qcount[m.id]||0}));
 }
 async function dbLoadSimHistorial(){
   if(!sb)return;
@@ -357,6 +359,11 @@ async function dbSaveHistory(mid,entry){if(sb)await sb.from('historial').insert(
 async function dbSaveSimHistorial(entry){if(sb){try{await sb.from('sim_historial').insert(entry);}catch(e){}}}
 async function dbGetFileData(fid){if(!sb)return null;const{data}=await sb.from('archivos').select('data').eq('id',fid).single();return data?.data||null;}
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
+async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));await sb.from('preguntas_cache').insert(rows);}
+async function dbGetCachedQuestions(mid,count){if(!sb)return[];const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).limit(500);if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
+async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);return count||0;}
+async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
+async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_cache').delete().eq('materia_id',mid);}
 
 // ── AUDIO ENGINE ──
 let audioCtx=null,musicNodes=[],musicOn=true;
@@ -436,7 +443,7 @@ async function saveMateria(){
 }
 async function deleteMateria(id){
   if(!confirm('¿Eliminar esta materia?'))return;
-  state.materias=state.materias.filter(m=>m.id!==id);await dbDeleteMateria(id);
+  state.materias=state.materias.filter(m=>m.id!==id);await dbDeleteMateria(id);await dbDeleteQuestionsByMateria(id);
   state.currentMateria=null;state.currentView='home';renderSidebar();renderContent();
 }
 function selectMateria(id){state.currentMateria=state.materias.find(m=>m.id===id);state.currentView='upload';exitSimMode();renderSidebar();renderContent();}
@@ -540,23 +547,22 @@ async function buildSimulacroQuestions(total){
 }
 
 async function generateSimQuestions(m,n){
-  console.log(`[SIM:${m.name}] generateSimQuestions n=${n}`);
+  // Try cache first — instant
+  const cached=await dbGetCachedQuestions(m.id,n);
+  if(cached.length>=n)return cached;
+  if(cached.length>0)return cached; // partial cache, use what we have
+  // Cache vacío: generar con Gemini
   const files=[...m.files.filter(f=>f.type==='test'),...m.files.filter(f=>f.type==='teoria')];
-  console.log(`[SIM:${m.name}] files=`,files.map(f=>({name:f.name,type:f.type,id:f.id})));
-  if(!files.length){console.log(`[SIM:${m.name}] no files, returning []`);return[];}
+  if(!files.length)return[];
   const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}. No hagas preguntas de otras partes.`:'Genera preguntas variadas de todo el documento.';
   const MAX_PER_CALL=20;
-  let pool=[];
-  let round=0;
+  let pool=[];let round=0;
   while(pool.length<n&&round<3){
     const needed=n-pool.length;
     const perFile=Math.min(MAX_PER_CALL,Math.max(1,Math.ceil(needed/files.length)));
-    console.log(`[SIM:${m.name}] round=${round} pool=${pool.length} needed=${needed} perFile=${perFile}`);
     const results=await Promise.all(files.map(async f=>{
       try{
-        const data=await dbGetFileData(f.id);
-        if(!data){console.log(`[SIM:${m.name}] file ${f.name}: dbGetFileData returned null`);return[];}
-        console.log(`[SIM:${m.name}] file ${f.name}: data loaded (${data.length} chars), calling Gemini...`);
+        const data=await dbGetFileData(f.id);if(!data)return[];
         const text=await callClaude([{role:'user',content:[
           {type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},
           {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${ti}
@@ -564,19 +570,13 @@ Genera exactamente ${perFile} preguntas tipo test para un simulacro oficial de e
 [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación breve"}]
 donde ans es índice (0-3) de la respuesta correcta. Preguntas precisas, opciones plausibles. Responde en español.`}
         ]}]);
-        console.log(`[SIM:${m.name}] file ${f.name}: Gemini response length=${text.length}`);
-        const qs=parseQuestions(text);
-        console.log(`[SIM:${m.name}] file ${f.name}: parsed ${qs.length} questions`);
-        return qs;
-      }catch(e){console.error(`[SIM:${m.name}] file ${f.name} ERROR:`,e.message);return[];}
+        return parseQuestions(text);
+      }catch(_){return[];}
     }));
     const nuevas=results.flat().filter(q=>!pool.some(p=>p.q===q.q));
-    console.log(`[SIM:${m.name}] round ${round}: nuevas=${nuevas.length}`);
     if(!nuevas.length)break;
-    pool=[...pool,...nuevas];
-    round++;
+    pool=[...pool,...nuevas];round++;
   }
-  console.log(`[SIM:${m.name}] final pool=${pool.length}, returning ${Math.min(pool.length,n)}`);
   return shuffle(pool).slice(0,n);
 }
 
@@ -720,7 +720,7 @@ function renderHome(c){
   if(!state.materias.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🏛️</div><h3>Bienvenido a Academia C1</h3><p>Crea tu primera materia para comenzar.</p><button class="btn btn-primary" onclick="openModal()">➕ Crear materia</button></div>`;return;}
   c.innerHTML=`<div class="home-grid">`+state.materias.map(m=>{
     const avg=avgScore(m);
-    return`<div class="home-card" onclick="selectMateria('${m.id}')"><div class="hc-icon">${m.icon}</div><h3>${m.name}</h3><p>${m.files.filter(f=>f.type==='teoria').length} teoría · ${m.files.filter(f=>f.type==='test').length} test · ${m.history.length} sesiones</p><div class="pm"><div class="pm-bar" style="width:${avg||0}%"></div></div></div>`;
+    return`<div class="home-card" onclick="selectMateria('${m.id}')"><div class="hc-icon">${m.icon}</div><h3>${m.name}</h3><p>${m.files.filter(f=>f.type==='teoria').length} teoría · ${m.files.filter(f=>f.type==='test').length} test · ${m.history.length} sesiones</p>${m.questionCount?`<p style="font-size:.75rem;color:var(--ok);margin-top:2px;margin-bottom:0">💾 ${m.questionCount} preguntas</p>`:m.files.some(f=>f._generating)?`<p style="font-size:.75rem;color:var(--warn);margin-top:2px;margin-bottom:0">⏳ Generando...</p>`:''}<div class="pm"><div class="pm-bar" style="width:${avg||0}%"></div></div></div>`;
   }).join('')+`</div>`;
 }
 
@@ -728,13 +728,19 @@ let uploadMode='teoria';
 function renderUpload(c,m){
   setTopBar(m.name,'Subir archivos');
   const files=m.files.filter(f=>f.type===uploadMode);
-  c.innerHTML=`<div class="upload-section"><div class="upload-tabs"><button class="upload-tab ${uploadMode==='teoria'?'active':''}" onclick="setUploadMode('teoria')">📚 Teoría / Leyes</button><button class="upload-tab ${uploadMode==='test'?'active':''}" onclick="setUploadMode('test')">📝 Tests de repaso</button></div>
+  const generating=m.files.some(f=>f._generating);
+  const cacheBar=m.questionCount
+    ?`<div style="background:#f0faf4;border:1px solid var(--ok);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between"><span style="color:var(--ok);font-size:.82rem;font-weight:600">💾 ${m.questionCount} preguntas en caché</span><button class="btn btn-secondary" style="font-size:.75rem;padding:5px 10px" onclick="regenerarPreguntas('${m.id}')">🔄 Regenerar</button></div>`
+    :generating
+      ?`<div style="background:#fff8e1;border:1px solid var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:12px"><span style="color:var(--warn);font-size:.82rem">⏳ Generando preguntas en segundo plano...</span></div>`
+      :`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between"><span style="color:var(--muted);font-size:.82rem">Sin preguntas en caché todavía</span>${m.files.length?`<button class="btn btn-secondary" style="font-size:.75rem;padding:5px 10px" onclick="regenerarPreguntas('${m.id}')">✨ Generar ahora</button>`:''}</div>`;
+  c.innerHTML=`<div class="upload-section">${cacheBar}<div class="upload-tabs"><button class="upload-tab ${uploadMode==='teoria'?'active':''}" onclick="setUploadMode('teoria')">📚 Teoría / Leyes</button><button class="upload-tab ${uploadMode==='test'?'active':''}" onclick="setUploadMode('test')">📝 Tests de repaso</button></div>
   <div class="drop-zone" onclick="document.getElementById('fi').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)"><div class="dz-icon">${uploadMode==='teoria'?'📄':'📋'}</div><h3>Arrastra PDFs aquí o haz clic</h3><p>${uploadMode==='teoria'?'Leyes, temario, apuntes':'Exámenes y tests de repaso'}</p></div>
   <input type="file" id="fi" class="file-input" accept=".pdf" multiple onchange="handleFiles(this.files)">
   <div class="file-list">${files.length?files.map(fileRowHTML).join(''):`<p style="text-align:center;color:var(--muted);font-size:.82rem;padding:16px">Sin archivos en esta categoría</p>`}</div></div>`;
 }
 function setUploadMode(m){uploadMode=m;renderContent();}
-function fileRowHTML(f){return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;}
+function fileRowHTML(f){return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB${f._generating?' · ⏳ generando preguntas...':''}</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;}
 function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files);}
 function handleFiles(files){
   const m=state.currentMateria;
@@ -744,11 +750,12 @@ function handleFiles(files){
     reader.onload=async(ev)=>{
       const f={id:'f_'+Date.now()+Math.random().toString(36).slice(2),name:file.name,size:file.size,type:uploadMode,data:ev.target.result};
       m.files.push(f);await dbSaveFile(f,m.id);renderContent();
+      generateAndCacheQuestions(f,m); // background, no await
     };
     reader.readAsDataURL(file);
   });
 }
-async function deleteFile(fid){state.currentMateria.files=state.currentMateria.files.filter(f=>f.id!==fid);await dbDeleteFile(fid);renderContent();}
+async function deleteFile(fid){state.currentMateria.files=state.currentMateria.files.filter(f=>f.id!==fid);await dbDeleteFile(fid);await dbDeleteQuestionsByFile(fid);state.currentMateria.questionCount=await dbCountCachedQuestions(state.currentMateria.id);renderContent();}
 
 function renderTeoria(c,m){
   setTopBar(m.name,'Teoría y leyes');
@@ -774,9 +781,10 @@ function renderTests(c,m){
   const banco=m.files.filter(f=>f.type==='test').length,teoria=m.files.filter(f=>f.type==='teoria').length;
   c.innerHTML=`<div class="test-view">
     ${m.temario?`<div class="temario-hint"><strong>📌 La IA solo generará preguntas sobre:</strong>${m.temario}</div>`:''}
+    ${m.questionCount?`<div style="background:#f0faf4;border:1px solid var(--ok);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--ok);font-weight:600">💾 ${m.questionCount} preguntas en caché · Carga instantánea ⚡</div>`:m.files.some(f=>f._generating)?`<div style="background:#fff8e1;border:1px solid var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--warn)">⏳ Generando preguntas en segundo plano...</div>`:''}
     <div class="test-options-grid">
-      <div class="test-option-card" onclick="${banco?"startQuiz('banco')":"alert('Sube primero PDFs de test.')"}"><div class="toc-icon">📋</div><h3>Test de banco</h3><p>${banco?`${banco} archivo${banco>1?'s':''}`:' Sin archivos'}</p></div>
-      <div class="test-option-card" onclick="${teoria?"startQuiz('ia')":"alert('Sube primero PDFs de teoría.')"}"><div class="toc-icon">✨</div><h3>Test generado por IA</h3><p>${teoria?`${teoria} archivo${teoria>1?'s':''}`:' Sin archivos'}${m.temario?' · Solo temario':''}</p></div>
+      <div class="test-option-card" onclick="${banco||m.questionCount?"startQuiz('banco')":"alert('Sube primero PDFs de test.')"}"><div class="toc-icon">📋</div><h3>Test de banco</h3><p>${banco?`${banco} archivo${banco>1?'s':''}`:' Sin archivos'}</p></div>
+      <div class="test-option-card" onclick="${teoria||m.questionCount?"startQuiz('ia')":"alert('Sube primero PDFs de teoría.')"}"><div class="toc-icon">✨</div><h3>Test generado por IA</h3><p>${teoria?`${teoria} archivo${teoria>1?'s':''}`:' Sin archivos'}${m.temario?' · Solo temario':''}</p></div>
     </div>
     <div class="instrucciones-box"><div class="ib-header"><span class="ib-title">📌 Títulos que entran en el examen</span><span class="ib-badge ${m.temario?'custom':''}">${m.temario?'Configurado':'Sin configurar'}</span></div>
     <textarea id="temarioInput" placeholder="Ej: Título preliminar, Título I...">${m.temario||''}</textarea>
@@ -792,9 +800,12 @@ const LETTERS=['a','b','c','d'];
 
 async function startQuiz(mode){
   state.quizMode=mode;const m=state.currentMateria;const c=document.getElementById('content');
-  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>${mode==='ia'?'Generando preguntas con IA...':'Cargando preguntas...'}</h3></div>`;
+  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>${m.questionCount?'Cargando preguntas...':'Generando preguntas con IA...'}</h3></div>`;
   try{
-    const questions=mode==='ia'?await generateAIQuestions(m):await extractBancoQuestions(m);
+    let questions=await dbGetCachedQuestions(m.id,30);
+    if(questions.length<10){
+      questions=mode==='ia'?await generateAIQuestions(m):await extractBancoQuestions(m);
+    }
     if(!questions.length)throw new Error('No se pudieron generar preguntas.');
     quiz={questions:shuffle(questions).slice(0,Math.min(30,questions.length)),current:0,score:0,answered:false,wrongs:[]};
     state.currentView='quiz';renderSidebar();renderContent();
@@ -827,6 +838,43 @@ async function extractBancoQuestions(m){
   }));
   const all=shuffle(results.flat());if(!all.length)throw new Error('No se pudieron extraer preguntas del banco.');
   return all.slice(0,30);
+}
+
+async function generateAndCacheQuestions(file,materia){
+  const fileObj=materia.files.find(x=>x.id===file.id);
+  if(fileObj)fileObj._generating=true;
+  renderContent();
+  try{
+    const data=await dbGetFileData(file.id);
+    if(!data){if(fileObj)delete fileObj._generating;renderContent();return;}
+    const base64=data.split(',')[1];
+    const ti=materia.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${materia.temario}.`:'Genera preguntas variadas.';
+    // 5 llamadas paralelas de 20 = hasta 100 preguntas
+    const calls=Array.from({length:5},(_,i)=>
+      callClaude([{role:'user',content:[
+        {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+        {type:'text',text:`Eres experto en oposiciones C1 Xunta de Galicia. ${ti} Genera exactamente 20 preguntas tipo test (lote ${i+1} de 5, preguntas DISTINTAS a los otros lotes). Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}
+      ]}]).then(t=>parseQuestions(t)).catch(()=>[])
+    );
+    const results=await Promise.all(calls);
+    const unique=results.flat().filter((q,i,arr)=>arr.findIndex(x=>x.q===q.q)===i);
+    await dbSaveQuestions(materia.id,file.id,unique);
+    const m=state.materias.find(x=>x.id===materia.id);
+    if(m)m.questionCount=(m.questionCount||0)+unique.length;
+  }finally{
+    if(fileObj)delete fileObj._generating;
+    renderContent();
+  }
+}
+
+async function regenerarPreguntas(materiaId){
+  const m=state.materias.find(x=>x.id===materiaId);
+  if(!m)return;
+  await dbDeleteQuestionsByMateria(materiaId);
+  m.questionCount=0;
+  renderContent();
+  const files=[...m.files.filter(f=>f.type==='test'),...m.files.filter(f=>f.type==='teoria')];
+  for(const f of files){await generateAndCacheQuestions(f,m);}
 }
 
 async function extractTextFromBase64PDF(base64){
