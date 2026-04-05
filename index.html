@@ -372,84 +372,6 @@ async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb
 async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
 async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_cache').delete().eq('materia_id',mid);}
 
-// ── AUDIO ENGINE ──
-let audioCtx=null,musicNodes=[],musicOn=true,himnoPlayed=false;
-function initAudio(){if(audioCtx)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
-
-// Himno gallego en primera interacción (gaita: sawtooth + filtro paso-bajo)
-function playHimnoGallego(){
-  if(himnoPlayed)return;himnoPlayed=true;
-  initAudio();
-  // Mi4-Mi4-Sol4-Mi4-Re4-Do4-Re4-Mi4-Sol4-Mi4-Re4-Do4
-  const freqs=[329.63,329.63,392,329.63,293.66,261.63,293.66,329.63,392,329.63,293.66,261.63];
-  const t=audioCtx.currentTime;
-  const filter=audioCtx.createBiquadFilter();
-  filter.type='lowpass';filter.frequency.setValueAtTime(800,t);filter.Q.setValueAtTime(10,t);
-  const masterG=audioCtx.createGain();masterG.gain.setValueAtTime(0.28,t);
-  masterG.connect(filter);filter.connect(audioCtx.destination);
-  freqs.forEach((freq,i)=>{
-    const s=t+i*0.8;
-    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-    o.type='sawtooth';o.frequency.setValueAtTime(freq,s);
-    g.gain.setValueAtTime(0,s);
-    g.gain.linearRampToValueAtTime(0.7,s+0.02);
-    g.gain.setValueAtTime(0.7,s+0.72);
-    g.gain.linearRampToValueAtTime(0,s+0.8);
-    o.connect(g);g.connect(masterG);
-    o.start(s);o.stop(s+0.82);
-  });
-}
-document.addEventListener('click',function onFirstClick(){
-  document.removeEventListener('click',onFirstClick);
-  playHimnoGallego();
-},{once:true});
-
-// Música zen para el simulacro: drone + agua filtrada + pájaros
-function startSimMusic(){
-  if(!musicOn||!audioCtx)return;
-  stopSimMusic();
-  const ac=audioCtx,now=ac.currentTime;
-  const master=ac.createGain();master.gain.setValueAtTime(0.5,now);master.connect(ac.destination);
-
-  // 1. Drone suave 80Hz
-  const drone=ac.createOscillator(),droneG=ac.createGain();
-  drone.type='sine';drone.frequency.setValueAtTime(80,now);
-  droneG.gain.setValueAtTime(0.08,now);
-  drone.connect(droneG);droneG.connect(master);drone.start();
-  musicNodes.push(drone,droneG);
-
-  // 2. Agua: ruido blanco → filtro paso-bajo 400Hz + LFO lento
-  const bufLen=ac.sampleRate*3;
-  const noiseBuf=ac.createBuffer(1,bufLen,ac.sampleRate);
-  const nd=noiseBuf.getChannelData(0);for(let i=0;i<bufLen;i++)nd[i]=Math.random()*2-1;
-  const noiseSrc=ac.createBufferSource();noiseSrc.buffer=noiseBuf;noiseSrc.loop=true;
-  const nFilt=ac.createBiquadFilter();nFilt.type='lowpass';nFilt.frequency.setValueAtTime(400,now);
-  const nGain=ac.createGain();nGain.gain.setValueAtTime(0.06,now);
-  const lfo=ac.createOscillator(),lfoG=ac.createGain();
-  lfo.frequency.setValueAtTime(0.12,now);lfoG.gain.setValueAtTime(180,now);
-  lfo.connect(lfoG);lfoG.connect(nFilt.frequency);lfo.start();
-  noiseSrc.connect(nFilt);nFilt.connect(nGain);nGain.connect(master);noiseSrc.start();
-  musicNodes.push(noiseSrc,nFilt,nGain,lfo,lfoG);
-
-  // 3. Pájaros: osciladores breves 2000-4000Hz cada 2-4 segundos
-  function pajaro(){
-    if(!audioCtx||musicNodes.length===0)return;
-    const freq=2000+Math.random()*2000;
-    const o=ac.createOscillator(),g=ac.createGain();
-    o.type='sine';
-    o.frequency.setValueAtTime(freq,ac.currentTime);
-    o.frequency.exponentialRampToValueAtTime(freq*(1.1+Math.random()*0.3),ac.currentTime+0.12);
-    g.gain.setValueAtTime(0,ac.currentTime);
-    g.gain.linearRampToValueAtTime(0.1,ac.currentTime+0.04);
-    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.28);
-    o.connect(g);g.connect(master);o.start();o.stop(ac.currentTime+0.32);
-    if(musicNodes.length>0)setTimeout(pajaro,2000+Math.random()*2000);
-  }
-  setTimeout(pajaro,800+Math.random()*1500);
-  musicNodes.push(master);
-}
-function stopSimMusic(){musicNodes.forEach(n=>{try{if(n.stop)n.stop();if(n.disconnect)n.disconnect();}catch(e){}});musicNodes=[];}
-function toggleMusic(){musicOn=!musicOn;if(musicOn){initAudio();startSimMusic();}else{stopSimMusic();}const el=document.getElementById('musicToggle');if(el)el.checked=musicOn;}
 
 // ── PARTICLES ──
 function startParticles(){
@@ -464,7 +386,7 @@ function stopParticles(){const p=document.getElementById('particles');p.style.di
 
 // ── SIMULACRO MODE ──
 function enterSimMode(){state.simMode=true;document.body.classList.add('simulacro-mode');document.getElementById('simOverlay').style.display='block';startParticles();}
-function exitSimMode(){state.simMode=false;document.body.classList.remove('simulacro-mode');document.getElementById('simOverlay').style.display='none';stopParticles();stopSimMusic();clearInterval(timerInterval);}
+function exitSimMode(){state.simMode=false;document.body.classList.remove('simulacro-mode');document.getElementById('simOverlay').style.display='none';stopParticles();clearInterval(timerInterval);}
 
 function toggleSidebar(){state.sidebarOpen=!state.sidebarOpen;document.getElementById('sidebar').classList.toggle('collapsed',!state.sidebarOpen);}
 
@@ -542,9 +464,6 @@ function renderSimLaunch(c){
         🎲 Reparto proporcional al volumen de archivos por materia
       </div>
     </div>
-    <label class="sim-music-toggle">
-      <input type="checkbox" id="musicToggle" checked onchange="musicOn=this.checked"> 🎵 Música zen
-    </label>
     <br><br>
     <button class="sim-start-btn" onclick="launchSimulacro()">⚔ COMENZAR SIMULACRO</button>
     <br><br>
@@ -558,7 +477,7 @@ let timerInterval=null;
 
 async function launchSimulacro(){
   const n=parseInt(document.getElementById('numPreg').value);
-  musicOn=document.getElementById('musicToggle').checked;
+
   const c=document.getElementById('content');
   c.innerHTML=`<div class="sim-launch"><div class="sim-icon" style="animation:pulse 1s infinite">⚙️</div><h1 style="color:#cc3333">PREPARANDO SIMULACRO</h1><p style="color:#886666">Generando preguntas de todas las materias...<br>Esto puede tardar unos minutos.</p></div>`;
   enterSimMode();
@@ -567,7 +486,6 @@ async function launchSimulacro(){
     if(!questions.length)throw new Error('No hay suficiente material. Sube archivos en las materias.');
     simQuiz={questions:shuffle(questions),current:0,score:0,answered:false,wrongs:[],totalTime:5400,elapsed:0,numPreg:n};
     state.currentView='simulacro-quiz';
-    initAudio();if(musicOn)startSimMusic();
     startTimer();renderContent();
   }catch(e){
     exitSimMode();
@@ -689,7 +607,7 @@ function simChoose(i){
 function simNextQ(){simQuiz.current++;simQuiz.answered=false;if(simQuiz.current>=simQuiz.questions.length)finishSimulacro(false);else renderContent();}
 
 async function finishSimulacro(timeOut=false){
-  clearInterval(timerInterval);stopSimMusic();
+  clearInterval(timerInterval);
   const pct=Math.round((simQuiz.score/simQuiz.questions.length)*100);
   const elapsed=simQuiz.elapsed;
   const entry={score:simQuiz.score,total:simQuiz.questions.length,pct,elapsed,timeout:timeOut,date:new Date().toLocaleDateString('es-ES'),time:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})};
