@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#003DA5"/>
-  <!-- Estreleira galega: banda diagonal + estrela -->
-  <polygon points="0,340 0,512 172,512" fill="#fff" opacity=".18"/>
-  <polygon points="512,0 340,0 512,172" fill="#fff" opacity=".18"/>
-  <!-- Banda diagonal -->
-  <polygon points="-20,180 180,-20 532,332 332,532" fill="#fff" opacity=".13"/>
-  <!-- Estrela -->
-  <polygon points="256,100 275,195 370,195 293,252 321,347 256,290 191,347 219,252 142,195 237,195" fill="#C9A84C"/>
+  <defs><clipPath id="rc"><rect width="512" height="512" rx="80"/></clipPath></defs>
+  <!-- Fondo branco -->
+  <rect width="512" height="512" rx="80" fill="#fff"/>
+  <!-- Banda azul diagonal (baixo-esquerda → arriba-dereita) -->
+  <polygon points="0,312 200,512 512,200 312,0" fill="#0077C8" clip-path="url(#rc)"/>
+  <!-- Estrela galega de 5 puntas (vermella con contorno branco para contraste) -->
+  <polygon points="256,80 293.6,188.2 408.2,190.6 316.9,259.8 350.0,369.4 256,304 162.0,369.4 195.1,259.8 103.8,190.6 218.4,188.2"
+           fill="#FF0000" stroke="#fff" stroke-width="12" stroke-linejoin="round"/>
 </svg>

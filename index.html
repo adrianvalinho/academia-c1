@@ -297,6 +297,44 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .temario-hint{background:#eef4fc;border:1px solid #c8ddf5;border-radius:10px;padding:12px 14px;font-size:.8rem;color:var(--accent);margin-bottom:16px;line-height:1.5;}
 .temario-hint strong{display:block;margin-bottom:4px;}
 
+/* ── FLASHCARDS ── */
+.fc-wrap{max-width:680px;}
+.fc-progress{font-size:.78rem;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.fc-card{background:var(--white);border:2px solid var(--border);border-radius:16px;padding:28px 24px;min-height:160px;display:flex;flex-direction:column;margin-bottom:14px;transition:border-color .2s;}
+.fc-card.revealed{border-color:var(--accent);}
+.fc-question{font-size:1rem;font-weight:600;line-height:1.6;color:var(--text);}
+.fc-hint{color:var(--muted);font-size:.8rem;margin-top:auto;padding-top:14px;}
+.fc-answer{margin-top:16px;padding-top:16px;border-top:2px solid var(--border);}
+.fc-answer-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ok);margin-bottom:4px;}
+.fc-answer-text{font-size:.95rem;font-weight:700;color:var(--text);}
+.fc-exp{font-size:.82rem;color:var(--muted);margin-top:6px;line-height:1.5;}
+.fc-reveal-btn{width:100%;padding:14px;background:var(--white);border:2px solid var(--accent);color:var(--accent);border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;margin-bottom:12px;}
+.fc-reveal-btn:hover{background:#eef4fc;}
+.fc-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fc-btn-no{padding:14px;background:#fdecea;border:2px solid var(--ko);color:#7c1a14;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;}
+.fc-btn-no:hover{background:#fbd5d2;}
+.fc-btn-si{padding:14px;background:#e8f9f0;border:2px solid var(--ok);color:#145c3c;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;}
+.fc-btn-si:hover{background:#d0f0e0;}
+
+/* ── FALLOS ── */
+.fallos-wrap{max-width:700px;}
+.fallo-item{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;}
+.fallo-item .fq{font-size:.88rem;font-weight:600;margin-bottom:6px;line-height:1.5;}
+.fallo-item .fa{font-size:.82rem;color:var(--ok);margin-bottom:2px;font-weight:600;}
+.fallo-item .fe{font-size:.79rem;color:var(--muted);margin-top:6px;line-height:1.5;}
+.fallo-superado-btn{font-size:.78rem;padding:5px 12px;background:#e8f9f0;border:1px solid var(--ok);color:var(--ok);border-radius:6px;cursor:pointer;font-weight:700;}
+.fallo-superado-btn:hover{background:#d0f0e0;}
+
+/* ── STATS ── */
+.stats-wrap{max-width:700px;}
+.racha-card{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:16px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:20px;}
+.racha-num{font-size:3.2rem;font-weight:900;line-height:1;flex-shrink:0;}
+.racha-label{font-size:1rem;font-weight:700;}
+.racha-sub{font-size:.78rem;opacity:.75;margin-top:2px;}
+.stats-section{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+.stats-section h3{font-size:.9rem;font-weight:700;color:var(--accent);margin-bottom:14px;}
+.racha-home{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:12px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;gap:12px;cursor:default;}
+
 /* ── MOBILE ── */
 .menu-btn{display:none;background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--accent);padding:4px 8px;flex-shrink:0;line-height:1;}
 .sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;}
@@ -338,6 +376,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   .sim-launch{padding:0 4px;}
   .sim-launch h1{font-size:1.6rem;}
   .upload-tabs{flex-wrap:wrap;}
+  .fc-actions{gap:8px;}
+  .fc-btn-si,.fc-btn-no{padding:12px 8px;font-size:.85rem;}
+  .stats-summary-grid{grid-template-columns:repeat(3,1fr);}
+  .racha-num{font-size:2.4rem;}
 }
 </style>
 </head>
@@ -432,6 +474,10 @@ async function dbGetCachedQuestions(mid,count){if(!sb)return[];const asc=Math.ra
 async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);return count||0;}
 async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
 async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_cache').delete().eq('materia_id',mid);}
+// fallos table: CREATE TABLE fallos(id uuid default gen_random_uuid() primary key, materia_id text, pregunta jsonb, created_at timestamptz default now());
+async function dbSaveFallo(mid,q){if(!sb)return;try{await sb.from('fallos').insert({materia_id:mid,pregunta:q});}catch(e){}}
+async function dbLoadFallos(mid){if(!sb)return[];try{const{data}=await sb.from('fallos').select('*').eq('materia_id',mid).order('created_at',{ascending:false});return data||[];}catch(e){return[];}}
+async function dbDeleteFallo(id){if(!sb)return;try{await sb.from('fallos').delete().eq('id',id);}catch(e){}}
 
 
 // ── PARTICLES ──
@@ -463,7 +509,7 @@ function renderSidebar(){
   nav.innerHTML=state.materias.map(m=>{
     const avg=avgScore(m),isOpen=state.currentMateria?.id===m.id;
     return`<div><div class="materia-header ${isOpen?'open':''}" onclick="selectMateria('${m.id}')"><span class="icon">${m.icon}</span><span class="name">${m.name}</span>${avg!==null?`<span class="score-badge">${avg}%</span>`:''}<span class="chevron">▶</span><button class="materia-delete" onclick="event.stopPropagation();deleteMateria('${m.id}')">✕</button></div>
-    ${isOpen?`<div class="materia-sub open"><div class="sub-item ${state.currentView==='upload'?'active':''}" onclick="showView('upload')"><span>📁</span> Subir archivos</div><div class="sub-item ${state.currentView==='teoria'?'active':''}" onclick="showView('teoria')"><span>📚</span> Teoría</div><div class="sub-item ${state.currentView==='tests'?'active':''}" onclick="showView('tests')"><span>📝</span> Tests</div><div class="sub-item ${state.currentView==='history'?'active':''}" onclick="showView('history')"><span>📊</span> Historial</div></div>`:''}
+    ${isOpen?`<div class="materia-sub open"><div class="sub-item ${state.currentView==='upload'?'active':''}" onclick="showView('upload')"><span>📁</span> Subir archivos</div><div class="sub-item ${state.currentView==='teoria'?'active':''}" onclick="showView('teoria')"><span>📚</span> Teoría</div><div class="sub-item ${state.currentView==='tests'?'active':''}" onclick="showView('tests')"><span>📝</span> Tests</div><div class="sub-item ${state.currentView==='flashcards'?'active':''}" onclick="showView('flashcards')"><span>🃏</span> Flashcards</div><div class="sub-item ${state.currentView==='fallos'?'active':''}" onclick="showView('fallos')"><span>❌</span> Repasar fallos</div><div class="sub-item ${state.currentView==='stats'?'active':''}" onclick="showView('stats')"><span>📈</span> Estatísticas</div><div class="sub-item ${state.currentView==='history'?'active':''}" onclick="showView('history')"><span>🗂️</span> Historial</div></div>`:''}
     </div>`;
   }).join('');
 }
@@ -502,7 +548,7 @@ function renderContent(){
   if(state.currentView==='simulacro-history'){renderSimHistory(c);return;}
   if(!state.currentMateria||state.currentView==='home'){renderHome(c);return;}
   const m=state.currentMateria;
-  ({upload:renderUpload,teoria:renderTeoria,tests:renderTests,quiz:renderQuiz,results:renderResults,history:renderHistory}[state.currentView]||renderHome)(c,m);
+  ({upload:renderUpload,teoria:renderTeoria,tests:renderTests,quiz:renderQuiz,results:renderResults,history:renderHistory,flashcards:renderFlashcards,fallos:renderFallos,stats:renderStats}[state.currentView]||renderHome)(c,m);
 }
 
 function goSimulacro(){
@@ -748,7 +794,9 @@ function renderHome(c){
   exitSimMode();
   setTopBar('Inicio','Selecciona unha materia ou crea unha nova');
   if(!state.materias.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🏛️</div><h3>Benvido/a á Academia C1</h3><p>Crea a túa primeira materia para comezar.</p><button class="btn btn-primary" onclick="openModal()">➕ Crear materia</button></div>`;return;}
-  c.innerHTML=`<div class="home-grid">`+state.materias.map(m=>{
+  const racha=calcRacha();
+  const rachaHtml=racha>0?`<div class="racha-home"><span style="font-size:2rem;line-height:1">${racha>=7?'🔥':'⭐'}</span><div><div style="font-size:1.1rem;font-weight:800">${racha} día${racha!==1?'s':''} de racha</div><div style="font-size:.8rem;opacity:.8">Días consecutivos estudando</div></div></div>`:'';
+  c.innerHTML=rachaHtml+`<div class="home-grid">`+state.materias.map(m=>{
     const avg=avgScore(m);
     return`<div class="home-card" onclick="selectMateria('${m.id}')"><div class="hc-icon">${m.icon}</div><h3>${m.name}</h3><p>${m.files.filter(f=>f.type==='teoria').length} teoría · ${m.files.filter(f=>f.type==='test').length} test · ${m.history.length} sesiones</p>${m.questionCount?`<p style="font-size:.75rem;color:var(--ok);margin-top:2px;margin-bottom:0">💾 ${m.questionCount} preguntas</p>`:m.files.some(f=>f._generating)?`<p style="font-size:.75rem;color:var(--warn);margin-top:2px;margin-bottom:0">⏳ Generando...</p>`:''}<div class="pm"><div class="pm-bar" style="width:${avg||0}%"></div></div></div>`;
   }).join('')+`</div>`;
@@ -834,6 +882,7 @@ function renderTests(c,m){
 async function saveTemario(){const t=document.getElementById('temarioInput').value.trim();state.currentMateria.temario=t;await dbUpdateTemario(state.currentMateria.id,t);renderContent();}
 
 let quiz={questions:[],current:0,score:0,answered:false,wrongs:[]};
+let fc={questions:[],current:0,sabido:0,noSabido:0,revealed:false};
 const LETTERS=['a','b','c','d'];
 
 async function startQuiz(mode){
@@ -984,7 +1033,7 @@ function choose(i){
   document.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);
   const fb=document.getElementById('fb');
   if(i===q.ans){quiz.score++;document.querySelectorAll('.opt-btn')[i].classList.add('correct');fb.className='feedback-box show ok';const frase=FRASES_ANIMO[Math.floor(Math.random()*FRASES_ANIMO.length)];fb.innerHTML=`${ESCUDO_SVG}<span class="frase-animo">${frase}</span>${q.exp?'<br><small style="font-weight:400">💡 '+q.exp+'</small>':''}`;}
-  else{document.querySelectorAll('.opt-btn')[i].classList.add('incorrect');document.querySelectorAll('.opt-btn')[q.ans].classList.add('reveal');quiz.wrongs.push({...q,chosen:i});fb.className='feedback-box show ko';fb.innerHTML=`❌ <strong>Incorrecto.</strong> Correcta: <strong>${LETTERS[q.ans]}) ${q.opts[q.ans]}</strong>${q.exp?'<br><small>💡 '+q.exp+'</small>':''}`;}
+  else{document.querySelectorAll('.opt-btn')[i].classList.add('incorrect');document.querySelectorAll('.opt-btn')[q.ans].classList.add('reveal');quiz.wrongs.push({...q,chosen:i});if(state.currentMateria)dbSaveFallo(state.currentMateria.id,q);fb.className='feedback-box show ko';fb.innerHTML=`❌ <strong>Incorrecto.</strong> Correcta: <strong>${LETTERS[q.ans]}) ${q.opts[q.ans]}</strong>${q.exp?'<br><small>💡 '+q.exp+'</small>':''}`;}
   document.getElementById('nb').style.display='block';
 }
 function nextQ(){quiz.current++;quiz.answered=false;quiz.current>=quiz.questions.length?finishQuiz():renderContent();}
@@ -1010,6 +1059,100 @@ function renderHistory(c,m){
   c.innerHTML=`<div class="history-list"><p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">${m.history.length} sesións</p>${[...m.history].reverse().map(h=>{const[g,gc]=h.pct>=70?['Aprobado','high']:h.pct>=50?['Case','mid']:['Suspenso','low'];return`<div class="history-item"><div class="hi-score" style="color:${h.pct>=70?'var(--ok)':h.pct>=50?'var(--warn)':'var(--ko)'}">${h.pct}%</div><div class="hi-info"><h4>${h.score}/${h.total} correctas</h4><p>${h.mode==='ia'?'✨ IA':'📋 Banco'} · ${h.date}</p></div><span class="grade-badge ${gc}">${g}</span></div>`;}).join('')}<button class="btn btn-danger" style="margin-top:8px" onclick="clearHistory()">🗑️ Borrar historial</button></div>`;
 }
 async function clearHistory(){if(!confirm('Borrar historial?'))return;if(sb)await sb.from('historial').delete().eq('materia_id',state.currentMateria.id);state.currentMateria.history=[];renderContent();}
+
+// ── FLASHCARDS ──
+async function renderFlashcards(c,m){
+  setTopBar(m.name,'Modo Estudo · Flashcards');
+  if(!m.questionCount&&!m.files.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🃏</div><h3>Sen preguntas</h3><p>Xera preguntas primeiro desde Tests.</p><button class="btn btn-primary" onclick="showView('tests')">Ir a Tests</button></div>`;return;}
+  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Cargando flashcards...</h3></div>`;
+  const qs=await dbGetCachedQuestions(m.id,50);
+  if(!qs.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🃏</div><h3>Sen preguntas en caché</h3><p>Xera preguntas primeiro desde Tests.</p><button class="btn btn-primary" onclick="showView('tests')">Ir a Tests</button></div>`;return;}
+  fc={questions:shuffle(qs),current:0,sabido:0,noSabido:0,revealed:false};
+  renderFCCard(c);
+}
+function renderFCCard(c){
+  const m=state.currentMateria;
+  if(fc.current>=fc.questions.length){
+    c.innerHTML=`<div class="fc-wrap"><div class="empty-state">${ESCUDO_SVG}<h2 style="margin:12px 0 6px;font-family:'Lora',serif">Ronda completada!</h2><p class="score-label">${fc.questions.length} tarxetas repasadas</p><div class="stats-grid" style="max-width:360px;margin:16px auto"><div class="stat-box ok"><div class="n">${fc.sabido}</div><div class="l">✓ Sabíao</div></div><div class="stat-box ko"><div class="n">${fc.noSabido}</div><div class="l">✗ Non sabía</div></div><div class="stat-box tot"><div class="n">${fc.questions.length}</div><div class="l">Total</div></div></div><div class="results-actions"><button class="btn btn-primary" onclick="renderFlashcards(document.getElementById('content'),state.currentMateria)">🔄 Outra ronda</button><button class="btn btn-secondary" onclick="showView('tests')">📝 Ir a Tests</button></div></div></div>`;return;
+  }
+  const q=fc.questions[fc.current];
+  const pct=Math.round((fc.current/fc.questions.length)*100);
+  c.innerHTML=`<div class="fc-wrap"><div class="fc-progress"><span>Tarxeta ${fc.current+1} / ${fc.questions.length}</span><span style="color:var(--ok)">✓ ${fc.sabido}</span></div><div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div><div style="height:10px"></div><div class="fc-card${fc.revealed?' revealed':''}"><div class="fc-question">${q.q}</div>${fc.revealed?`<div class="fc-answer"><div class="fc-answer-label">✓ Resposta correcta</div><div class="fc-answer-text">${LETTERS[q.ans]}) ${q.opts[q.ans]}</div>${q.exp?`<div class="fc-exp">💡 ${q.exp}</div>`:''}</div>`:`<div class="fc-hint">Pensa a resposta e despois revela...</div>`}</div>${fc.revealed?`<div class="fc-actions"><button class="fc-btn-no" onclick="fcNext(false)">✗ Non o sabía</button><button class="fc-btn-si" onclick="fcNext(true)">✓ Sabíao!</button></div>`:`<button class="fc-reveal-btn" onclick="fcReveal()">👁 Revelar resposta</button>`}</div>`;
+}
+function fcReveal(){fc.revealed=true;renderFCCard(document.getElementById('content'));}
+function fcNext(sabido){if(sabido)fc.sabido++;else fc.noSabido++;fc.current++;fc.revealed=false;renderFCCard(document.getElementById('content'));}
+
+// ── FALLOS ──
+async function renderFallos(c,m){
+  setTopBar(m.name,'Preguntas Falladas');
+  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Cargando fallos...</h3></div>`;
+  const fallos=await dbLoadFallos(m.id);
+  if(!fallos.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🎯</div><h3>Sen fallos rexistrados</h3><p>Cando falles preguntas nos tests aparecerán aquí para repasar.</p></div>`;return;}
+  // Dedup by question text (mostrar só 1 por pregunta)
+  const seen=new Set();const unique=fallos.filter(f=>{const k=f.pregunta?.q;if(!k||seen.has(k))return false;seen.add(k);return true;});
+  c.innerHTML=`<div class="fallos-wrap"><p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">${unique.length} pregunta${unique.length!==1?'s':''} pendente${unique.length!==1?'s':''} de repasar</p>${unique.map(f=>{const q=f.pregunta;return`<div class="fallo-item" id="fi_${f.id}"><div class="fq">${q.q}</div><div class="fa">✓ ${LETTERS[q.ans]}) ${q.opts[q.ans]}</div>${q.exp?`<div class="fe">💡 ${q.exp}</div>`:''}<div style="display:flex;gap:8px;margin-top:10px;align-items:center"><button class="fallo-superado-btn" onclick="markFalloSuperado('${f.id}','${m.id}')">✓ Superada</button><span style="font-size:.72rem;color:var(--muted)">${f.created_at?new Date(f.created_at).toLocaleDateString('gl-ES'):''}</span></div></div>`;}).join('')}<button class="btn btn-danger" style="margin-top:8px" onclick="clearFallos('${m.id}')">🗑️ Borrar todos os fallos</button></div>`;
+}
+async function markFalloSuperado(id,mid){
+  await dbDeleteFallo(id);
+  // Also delete other duplicates of this question
+  const el=document.getElementById('fi_'+id);
+  el?.remove();
+  const remaining=document.querySelectorAll('.fallo-item').length;
+  if(!remaining)renderFallos(document.getElementById('content'),state.currentMateria);
+  else{const p=document.querySelector('.fallos-wrap>p');if(p)p.textContent=`${remaining} pregunta${remaining!==1?'s':''} pendente${remaining!==1?'s':''} de repasar`;}
+}
+async function clearFallos(mid){
+  if(!confirm('Borrar todos os fallos desta materia?'))return;
+  try{if(sb)await sb.from('fallos').delete().eq('materia_id',mid);}catch(e){}
+  renderFallos(document.getElementById('content'),state.currentMateria);
+}
+
+// ── STATS ──
+function calcRacha(){
+  const days=new Set();
+  state.materias.forEach(m=>m.history.forEach(h=>{
+    const p=h.date.split('/');
+    if(p.length===3)days.add(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`);
+  }));
+  if(!days.size)return 0;
+  const sorted=[...days].sort().reverse();
+  const today=new Date();today.setHours(0,0,0,0);
+  const firstDay=new Date(sorted[0]+'T00:00:00');firstDay.setHours(0,0,0,0);
+  const diffDays=Math.round((today-firstDay)/864e5);
+  if(diffDays>1)return 0;
+  let streak=0;
+  const check=new Date(today);
+  if(diffDays===1)check.setDate(check.getDate()-1);
+  for(const ds of sorted){
+    const d=new Date(ds+'T00:00:00');d.setHours(0,0,0,0);
+    if(d.getTime()===check.getTime()){streak++;check.setDate(check.getDate()-1);}
+    else break;
+  }
+  return streak;
+}
+function renderProgressChart(history){
+  const data=history.slice(-20);
+  if(data.length<2)return '';
+  const W=480,H=130,PL=34,PR=10,PT=10,PB=26;
+  const IW=W-PL-PR,IH=H-PT-PB;
+  const xs=data.map((_,i)=>PL+i/(data.length-1)*IW);
+  const ys=data.map(h=>PT+(1-h.pct/100)*IH);
+  const line=xs.map((x,i)=>`${i===0?'M':'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+  const area=`${line} L${xs[xs.length-1].toFixed(1)},${(PT+IH).toFixed(1)} L${PL},${(PT+IH).toFixed(1)} Z`;
+  const y50=(PT+(1-.5)*IH).toFixed(1),y70=(PT+(1-.7)*IH).toFixed(1);
+  const dots=data.map((h,i)=>`<circle cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="4" fill="${h.pct>=70?'#22a06b':h.pct>=50?'#e6a817':'#d93025'}"><title>${h.date}: ${h.pct}%</title></circle>`).join('');
+  const labels=data.map((h,i)=>i===0||i===data.length-1?`<text x="${xs[i].toFixed(1)}" y="${H-4}" font-size="8" fill="#5a7aa0" text-anchor="${i===0?'start':'end'}">${h.date.slice(0,5)}</text>`:'').join('');
+  return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;overflow:visible"><line x1="${PL}" y1="${y70}" x2="${W-PR}" y2="${y70}" stroke="#22a06b" stroke-width="1" stroke-dasharray="4,3" opacity=".5"/><line x1="${PL}" y1="${y50}" x2="${W-PR}" y2="${y50}" stroke="#e6a817" stroke-width="1" stroke-dasharray="4,3" opacity=".5"/><text x="${PL-4}" y="${parseFloat(y70)+4}" font-size="9" fill="#22a06b" text-anchor="end">70</text><text x="${PL-4}" y="${parseFloat(y50)+4}" font-size="9" fill="#e6a817" text-anchor="end">50</text><path d="${area}" fill="#003DA5" opacity=".08"/><path d="${line}" fill="none" stroke="#003DA5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}${labels}</svg>`;
+}
+function renderStats(c,m){
+  setTopBar(m.name,'Estatísticas');
+  const racha=calcRacha();
+  const h=m.history;
+  const avg=h.length?Math.round(h.reduce((s,e)=>s+e.pct,0)/h.length):0;
+  const best=h.length?Math.max(...h.map(e=>e.pct)):0;
+  const aprobados=h.filter(e=>e.pct>=70).length;
+  c.innerHTML=`<div class="stats-wrap"><div class="racha-card"><div class="racha-num">${racha>=7?'🔥':'⭐'} ${racha}</div><div><div class="racha-label">día${racha!==1?'s':''} de racha</div><div class="racha-sub">Días consecutivos estudando (todas as materias)</div></div></div><div class="stats-section"><h3>📊 ${m.name}</h3><div class="stats-grid"><div class="stat-box tot"><div class="n">${h.length}</div><div class="l">Tests feitos</div></div><div class="stat-box ${avg>=70?'ok':avg>=50?'':'ko'}"><div class="n">${avg}%</div><div class="l">Media</div></div><div class="stat-box ok"><div class="n">${best}%</div><div class="l">Mellor nota</div></div></div></div>${h.length>=2?`<div class="stats-section"><h3>📈 Progreso</h3>${renderProgressChart(h)}</div>`:''}${h.length?`<div class="stats-section"><h3>🗓️ Últimas sesións</h3>${[...h].reverse().slice(0,10).map(e=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.82rem"><span style="font-weight:800;min-width:36px;color:${e.pct>=70?'var(--ok)':e.pct>=50?'var(--warn)':'var(--ko)'}">${e.pct}%</span><span>${e.score}/${e.total} · ${e.mode==='ia'?'✨ IA':'📋 Banco'}</span><span style="margin-left:auto;color:var(--muted)">${e.date}</span></div>`).join('')}</div>`:'<p style="color:var(--muted);font-size:.85rem;text-align:center;padding:20px">Completa tests para ver estatísticas.</p>'}</div>`;
+}
 
 function parseQuestions(text){
   // 1. Strip markdown code fences
@@ -1038,8 +1181,8 @@ function shuffle(arr){let a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.
 (async()=>{
   const ok=initSupabase();
   if(!ok){document.getElementById('content').innerHTML=`<div class="empty-state"><div class="es-icon">⚙️</div><h3>Configuración necesaria</h3><p>Configura las variables de Supabase.</p></div>`;return;}
-  // Crear tabla sim_historial si no existe
   try{await sb.from('sim_historial').select('id').limit(1);}catch(e){}
+  try{await sb.from('fallos').select('id').limit(1);}catch(e){}
   await Promise.all([dbLoadMaterias(),dbLoadSimHistorial()]);
   renderSidebar();renderContent();
   // Register Service Worker
