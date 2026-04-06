@@ -1,5 +1,5 @@
-// Academia C1 Service Worker v1
-const CACHE = 'academia-c1-v1';
+// Academia C1 Service Worker v2
+const CACHE = 'academia-c1-v2';
 const PRECACHE = ['/', '/index.html', '/icon.svg', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -13,6 +13,8 @@ self.addEventListener('activate', e => {
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' })))
   );
 });
 

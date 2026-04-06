@@ -405,11 +405,27 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   <button class="add-materia-btn" onclick="openModal()"><span>＋</span><span>Nova materia</span></button>
   <button class="simulacro-btn" onclick="goSimulacro()"><span>💀</span><span>Simulacro xeral</span></button>
   <div class="sidebar-nav" id="sidebarNav"></div>
+  <div id="sidebarFooter" style="padding:12px 14px;border-top:1px solid rgba(255,255,255,.15);margin-top:auto;flex-shrink:0">
+    <div id="sidebarUser" style="font-size:.79rem;color:rgba(255,255,255,.45);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+    <button onclick="changeUser()" style="width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:rgba(255,255,255,.65);border-radius:6px;padding:6px 10px;font-size:.8rem;cursor:pointer;text-align:left">👤 Cambiar usuario</button>
+  </div>
 </nav>
 
 <div id="main">
   <div class="topbar"><button class="menu-btn" onclick="toggleSidebar()" aria-label="Menú">☰</button><div><h1 id="topTitle">Inicio</h1><p id="topSub">Selecciona unha materia para comezar</p></div></div>
   <div class="content" id="content"><div class="ai-loading"><div class="spinner"></div><h3>Iniciando...</h3><p>Conectando con la base de datos</p></div></div>
+</div>
+
+<div class="modal-overlay" id="userModal" style="display:none">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <div style="font-size:3rem;margin-bottom:8px">🏛️</div>
+    <h2 style="margin-bottom:4px">Benvido/a á Academia C1</h2>
+    <p style="color:var(--muted);font-size:.9rem;margin-bottom:20px">Como te chamas? Usarase para gardar o teu progreso persoal.</p>
+    <input type="text" id="userNameInput" placeholder="O teu nome..." style="text-align:center;font-size:1.05rem">
+    <div class="modal-footer" style="margin-top:16px">
+      <button class="btn btn-primary" style="width:100%" onclick="saveUser()">Entrar →</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modal" style="display:none">
@@ -447,11 +463,38 @@ let simHistorial=[];
 let sb=null;
 function initSupabase(){if(!SUPABASE_URL||!SUPABASE_KEY)return false;sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);return true;}
 
+// ── USER SYSTEM ──
+function getUserId(){return localStorage.getItem('academia_user_id');}
+function getUserName(){return localStorage.getItem('academia_user_name');}
+function setUser(name){
+  const id=name.toLowerCase().trim().replace(/\s+/g,'_');
+  localStorage.setItem('academia_user_id',id);
+  localStorage.setItem('academia_user_name',name.trim());
+  return id;
+}
+function showUserModal(){
+  document.getElementById('userNameInput').value='';
+  document.getElementById('userModal').style.display='flex';
+  setTimeout(()=>document.getElementById('userNameInput').focus(),50);
+}
+function hideUserModal(){document.getElementById('userModal').style.display='none';}
+async function saveUser(){
+  const name=document.getElementById('userNameInput').value.trim();
+  if(!name)return;
+  setUser(name);
+  hideUserModal();
+  await initApp();
+}
+function changeUser(){showUserModal();}
+
 async function dbLoadMaterias(){
   if(!sb)return;
+  const uid=getUserId();
   const{data:mats}=await sb.from('materias').select('*').order('created_at');
   const{data:files}=await sb.from('archivos').select('id,materia_id,name,size,type');
-  const{data:hist}=await sb.from('historial').select('*').order('created_at');
+  let hq=sb.from('historial').select('*').order('created_at');
+  if(uid)hq=hq.eq('user_id',uid);
+  const{data:hist}=await hq;
   // Contar preguntas por materia con queries COUNT paralelas (evita límite de 1000 filas de Supabase)
   const qcounts=await Promise.allSettled((mats||[]).map(async m=>{const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',m.id);return{id:m.id,count:count||0};}));
   const qcount={};qcounts.forEach(r=>{if(r.status==='fulfilled')qcount[r.value.id]=r.value.count;});
@@ -459,14 +502,15 @@ async function dbLoadMaterias(){
 }
 async function dbLoadSimHistorial(){
   if(!sb)return;
-  try{const{data}=await sb.from('sim_historial').select('*').order('created_at',{ascending:false}).limit(30);simHistorial=data||[];}catch(e){simHistorial=[];}
+  const uid=getUserId();
+  try{let q=sb.from('sim_historial').select('*').order('created_at',{ascending:false}).limit(30);if(uid)q=q.eq('user_id',uid);const{data}=await q;simHistorial=data||[];}catch(e){simHistorial=[];}
 }
 async function dbSaveMateria(m){if(sb)await sb.from('materias').upsert({id:m.id,name:m.name,icon:m.icon,temario:m.temario||''});}
 async function dbDeleteMateria(id){if(sb)await sb.from('materias').delete().eq('id',id);}
 async function dbSaveFile(f,mid){if(sb)await sb.from('archivos').upsert({id:f.id,materia_id:mid,name:f.name,size:f.size,type:f.type,data:f.data});}
 async function dbDeleteFile(fid){if(sb)await sb.from('archivos').delete().eq('id',fid);}
-async function dbSaveHistory(mid,entry){if(sb)await sb.from('historial').insert({materia_id:mid,...entry});}
-async function dbSaveSimHistorial(entry){if(sb){try{await sb.from('sim_historial').insert(entry);}catch(e){}}}
+async function dbSaveHistory(mid,entry){if(sb)await sb.from('historial').insert({materia_id:mid,user_id:getUserId()||'',...entry});}
+async function dbSaveSimHistorial(entry){if(sb){try{await sb.from('sim_historial').insert({...entry,user_id:getUserId()||''});}catch(e){}}}
 async function dbGetFileData(fid){if(!sb)return null;const{data}=await sb.from('archivos').select('data').eq('id',fid).single();return data?.data||null;}
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
 async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));await sb.from('preguntas_cache').insert(rows);}
@@ -474,9 +518,9 @@ async function dbGetCachedQuestions(mid,count){if(!sb)return[];const asc=Math.ra
 async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);return count||0;}
 async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
 async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_cache').delete().eq('materia_id',mid);}
-// fallos table: CREATE TABLE fallos(id uuid default gen_random_uuid() primary key, materia_id text, pregunta jsonb, created_at timestamptz default now());
-async function dbSaveFallo(mid,q){if(!sb)return;try{await sb.from('fallos').insert({materia_id:mid,pregunta:q});}catch(e){}}
-async function dbLoadFallos(mid){if(!sb)return[];try{const{data}=await sb.from('fallos').select('*').eq('materia_id',mid).order('created_at',{ascending:false});return data||[];}catch(e){return[];}}
+// fallos table: CREATE TABLE fallos(id uuid default gen_random_uuid() primary key, materia_id text, user_id text, pregunta jsonb, created_at timestamptz default now());
+async function dbSaveFallo(mid,q){if(!sb)return;try{await sb.from('fallos').insert({materia_id:mid,user_id:getUserId()||'',pregunta:q});}catch(e){}}
+async function dbLoadFallos(mid){if(!sb)return[];const uid=getUserId();try{let q=sb.from('fallos').select('*').eq('materia_id',mid).order('created_at',{ascending:false});if(uid)q=q.eq('user_id',uid);const{data}=await q;return data||[];}catch(e){return[];}}
 async function dbDeleteFallo(id){if(!sb)return;try{await sb.from('fallos').delete().eq('id',id);}catch(e){}}
 
 
@@ -785,7 +829,8 @@ function renderSimHistory(c){
 
 async function clearSimHistory(){
   if(!confirm('¿Borrar todo el historial de simulacros?'))return;
-  if(sb){try{await sb.from('sim_historial').delete().neq('id',0);}catch(e){}}
+  const uid=getUserId();
+  if(sb){try{let q=sb.from('sim_historial').delete();if(uid)q=q.eq('user_id',uid);else q=q.neq('id',0);await q;}catch(e){}}
   simHistorial=[];renderContent();
 }
 
@@ -1058,7 +1103,7 @@ function renderHistory(c,m){
   if(!m.history.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">📊</div><h3>Sen historial</h3><p>Completa o teu primeiro test.</p><button class="btn btn-primary" onclick="showView('tests')">Ir a Tests</button></div>`;return;}
   c.innerHTML=`<div class="history-list"><p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">${m.history.length} sesións</p>${[...m.history].reverse().map(h=>{const[g,gc]=h.pct>=70?['Aprobado','high']:h.pct>=50?['Case','mid']:['Suspenso','low'];return`<div class="history-item"><div class="hi-score" style="color:${h.pct>=70?'var(--ok)':h.pct>=50?'var(--warn)':'var(--ko)'}">${h.pct}%</div><div class="hi-info"><h4>${h.score}/${h.total} correctas</h4><p>${h.mode==='ia'?'✨ IA':'📋 Banco'} · ${h.date}</p></div><span class="grade-badge ${gc}">${g}</span></div>`;}).join('')}<button class="btn btn-danger" style="margin-top:8px" onclick="clearHistory()">🗑️ Borrar historial</button></div>`;
 }
-async function clearHistory(){if(!confirm('Borrar historial?'))return;if(sb)await sb.from('historial').delete().eq('materia_id',state.currentMateria.id);state.currentMateria.history=[];renderContent();}
+async function clearHistory(){if(!confirm('Borrar historial?'))return;const uid=getUserId();if(sb){let q=sb.from('historial').delete().eq('materia_id',state.currentMateria.id);if(uid)q=q.eq('user_id',uid);await q;}state.currentMateria.history=[];renderContent();}
 
 // ── FLASHCARDS ──
 async function renderFlashcards(c,m){
@@ -1103,7 +1148,8 @@ async function markFalloSuperado(id,mid){
 }
 async function clearFallos(mid){
   if(!confirm('Borrar todos os fallos desta materia?'))return;
-  try{if(sb)await sb.from('fallos').delete().eq('materia_id',mid);}catch(e){}
+  const uid=getUserId();
+  try{if(sb){let q=sb.from('fallos').delete().eq('materia_id',mid);if(uid)q=q.eq('user_id',uid);await q;}}catch(e){}
   renderFallos(document.getElementById('content'),state.currentMateria);
 }
 
@@ -1178,17 +1224,35 @@ function parseQuestions(text){
 
 function shuffle(arr){let a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-(async()=>{
-  const ok=initSupabase();
-  if(!ok){document.getElementById('content').innerHTML=`<div class="empty-state"><div class="es-icon">⚙️</div><h3>Configuración necesaria</h3><p>Configura las variables de Supabase.</p></div>`;return;}
+function registerSW(){
+  if(!('serviceWorker' in navigator))return;
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  let swRefreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!swRefreshing){swRefreshing=true;window.location.reload();}});
+  navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='SW_UPDATED'&&!swRefreshing){swRefreshing=true;window.location.reload();}});
+}
+
+async function initApp(){
+  const name=getUserName();
+  const sidebarUser=document.getElementById('sidebarUser');
+  if(sidebarUser&&name)sidebarUser.textContent=`👤 ${name}`;
   try{await sb.from('sim_historial').select('id').limit(1);}catch(e){}
   try{await sb.from('fallos').select('id').limit(1);}catch(e){}
   await Promise.all([dbLoadMaterias(),dbLoadSimHistorial()]);
   renderSidebar();renderContent();
-  // Register Service Worker
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
+
+(async()=>{
+  const ok=initSupabase();
+  if(!ok){document.getElementById('content').innerHTML=`<div class="empty-state"><div class="es-icon">⚙️</div><h3>Configuración necesaria</h3><p>Configura las variables de Supabase.</p></div>`;return;}
+  registerSW();
+  if(!getUserId()){
+    document.getElementById('content').innerHTML='';
+    showUserModal();
+    document.getElementById('userNameInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveUser();});
+    return;
   }
+  await initApp();
 })();
 </script>
 </body>
