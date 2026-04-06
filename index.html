@@ -351,8 +351,8 @@ async function dbLoadMaterias(){
   const{data:files}=await sb.from('archivos').select('id,materia_id,name,size,type');
   const{data:hist}=await sb.from('historial').select('*').order('created_at');
   // Contar preguntas por materia con queries COUNT paralelas (evita límite de 1000 filas de Supabase)
-  const qcounts=await Promise.all((mats||[]).map(async m=>{const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',m.id);return{id:m.id,count:count||0};}));
-  const qcount={};qcounts.forEach(r=>{qcount[r.id]=r.count;});
+  const qcounts=await Promise.allSettled((mats||[]).map(async m=>{const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',m.id);return{id:m.id,count:count||0};}));
+  const qcount={};qcounts.forEach(r=>{if(r.status==='fulfilled')qcount[r.value.id]=r.value.count;});
   state.materias=(mats||[]).map(m=>({...m,files:(files||[]).filter(f=>f.materia_id===m.id).map(f=>({...f,data:null})),history:(hist||[]).filter(h=>h.materia_id===m.id),questionCount:qcount[m.id]||0}));
 }
 async function dbLoadSimHistorial(){
