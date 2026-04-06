@@ -1,0 +1,26 @@
+{
+  "name": "Academia C1 - Xunta de Galicia",
+  "short_name": "Academia C1",
+  "description": "Preparación de oposicións C1 Xunta de Galicia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef3fb",
+  "theme_color": "#003DA5",
+  "orientation": "portrait-primary",
+  "lang": "gl",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["education"]
+}

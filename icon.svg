@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#003DA5"/>
+  <!-- Estreleira galega: banda diagonal + estrela -->
+  <polygon points="0,340 0,512 172,512" fill="#fff" opacity=".18"/>
+  <polygon points="512,0 340,0 512,172" fill="#fff" opacity=".18"/>
+  <!-- Banda diagonal -->
+  <polygon points="-20,180 180,-20 532,332 332,532" fill="#fff" opacity=".13"/>
+  <!-- Estrela -->
+  <polygon points="256,100 275,195 370,195 293,252 321,347 256,290 191,347 219,252 142,195 237,195" fill="#C9A84C"/>
+</svg>
