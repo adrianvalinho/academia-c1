@@ -524,10 +524,9 @@ async function dbSaveHistory(mid,entry){if(sb)await sb.from('historial').insert(
 async function dbSaveSimHistorial(entry){if(sb){try{await sb.from('sim_historial').insert({...entry,user_id:getUserId()||''});}catch(e){}}}
 async function dbGetFileData(fid){
   if(!sb)return null;
-  const{data,error}=await sb.from('archivos').select('data').eq('id',fid).single();
+  const{data,error}=await sb.from('archivos').select('data').eq('id',fid).limit(1);
   if(error){console.error('[dbGetFileData] Supabase error fid='+fid,error);return null;}
-  if(!data?.data){console.warn('[dbGetFileData] data field null/empty fid='+fid,'row=',data);}
-  return data?.data||null;
+  return data?.[0]?.data||null;
 }
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
 async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));await sb.from('preguntas_cache').insert(rows);}
