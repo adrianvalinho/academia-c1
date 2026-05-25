@@ -518,7 +518,13 @@ async function dbLoadSimHistorial(){
 }
 async function dbSaveMateria(m){if(sb)await sb.from('materias').upsert({id:m.id,name:m.name,icon:m.icon,temario:m.temario||''});}
 async function dbDeleteMateria(id){if(sb)await sb.from('materias').delete().eq('id',id);}
-async function dbSaveFile(f,mid){if(sb)await sb.from('archivos').upsert({id:f.id,materia_id:mid,name:f.name,size:f.size,type:f.type,data:f.data});}
+async function dbSaveFile(f,mid){
+  if(!sb)return;
+  const payload={id:f.id,materia_id:mid,name:f.name,size:f.size,type:f.type,data:f.data};
+  console.log('[dbSaveFile] upsert payload (sin data):',{id:payload.id,materia_id:payload.materia_id,name:payload.name,size:payload.size,type:payload.type,dataLen:payload.data?.length});
+  const{error}=await sb.from('archivos').upsert(payload);
+  if(error)console.error('[dbSaveFile] Supabase error (type='+f.type+'):', error);
+}
 async function dbDeleteFile(fid){if(sb)await sb.from('archivos').delete().eq('id',fid);}
 async function dbSaveHistory(mid,entry){if(sb)await sb.from('historial').insert({materia_id:mid,user_id:getUserId()||'',...entry});}
 async function dbSaveSimHistorial(entry){if(sb){try{await sb.from('sim_historial').insert({...entry,user_id:getUserId()||''});}catch(e){}}}
