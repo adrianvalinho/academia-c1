@@ -522,7 +522,13 @@ async function dbSaveFile(f,mid){if(sb)await sb.from('archivos').upsert({id:f.id
 async function dbDeleteFile(fid){if(sb)await sb.from('archivos').delete().eq('id',fid);}
 async function dbSaveHistory(mid,entry){if(sb)await sb.from('historial').insert({materia_id:mid,user_id:getUserId()||'',...entry});}
 async function dbSaveSimHistorial(entry){if(sb){try{await sb.from('sim_historial').insert({...entry,user_id:getUserId()||''});}catch(e){}}}
-async function dbGetFileData(fid){if(!sb)return null;const{data}=await sb.from('archivos').select('data').eq('id',fid).single();return data?.data||null;}
+async function dbGetFileData(fid){
+  if(!sb)return null;
+  const{data,error}=await sb.from('archivos').select('data').eq('id',fid).single();
+  if(error){console.error('[dbGetFileData] Supabase error fid='+fid,error);return null;}
+  if(!data?.data){console.warn('[dbGetFileData] data field null/empty fid='+fid,'row=',data);}
+  return data?.data||null;
+}
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
 async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));await sb.from('preguntas_cache').insert(rows);}
 async function dbGetCachedQuestions(mid,count){if(!sb)return[];const asc=Math.random()>.5;const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).order('id',{ascending:asc}).limit(count*3);if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
@@ -1242,9 +1248,16 @@ async function startSupuesto(fileId){
     if(cached.status==='fulfilled'&&cached.value){
       supData=cached.value;
     } else {
-      const data=await dbGetFileData(fileId);
-      if(!data)throw new Error('Non se puideron cargar os datos do ficheiro.');
-      const base64=data.split(',')[1];
+      // 1. Try in-memory (file just uploaded this session, data still in state)
+      let rawData=m.files.find(f=>f.id===fileId)?.data||null;
+      // 2. Fall back to Supabase query
+      if(!rawData){rawData=await dbGetFileData(fileId);}
+      if(!rawData){
+        console.error('[startSupuesto] fileId='+fileId+' not found or data null. Files in state:',m.files.map(f=>({id:f.id,type:f.type,hasData:!!f.data})));
+        throw new Error('Non se puideron cargar os datos do ficheiro. Comproba a consola do navegador para máis detalles.');
+      }
+      const data=rawData;
+      const base64=data.includes(',') ? data.split(',')[1] : data;
       const prompt=`Eres un preparador de oposiciones para el Cuerpo Administrativo C1 de la Xunta de Galicia. Basándote en el siguiente contenido legal, genera un supuesto práctico realista con este formato exacto en JSON:
 {"caso":"Texto del caso práctico (150-200 palabras describiendo la situación de un empleado público o ciudadano que interactúa con la administración)","preguntas":[{"pregunta":"Texto de la pregunta","opciones":["A) ...","B) ...","C) ...","D) ..."],"correcta":0}]}
 Genera exactamente 30 preguntas. Las preguntas deben referirse al caso descrito y aplicar la normativa del contenido proporcionado. Las opciones deben ser plausibles y los índices correcta deben ser 0-3. Solo devuelve el JSON, sin texto adicional.`;
