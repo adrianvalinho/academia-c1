@@ -884,22 +884,24 @@ function renderUpload(c,m){
       ?`<div style="background:#fff8e1;border:1px solid var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:12px"><span style="color:var(--warn);font-size:.82rem">⏳ Xerando preguntas en segundo plano...</span></div>`
       :`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between"><span style="color:var(--muted);font-size:.82rem">Sen preguntas en caché aínda</span>${m.files.length?`<button class="btn btn-secondary" style="font-size:.75rem;padding:5px 10px" onclick="regenerarPreguntas('${m.id}')">✨ Xerar agora</button>`:''}</div>`;
   c.innerHTML=`<div class="upload-section">${cacheBar}<div class="upload-tabs"><button class="upload-tab ${uploadMode==='teoria'?'active':''}" onclick="setUploadMode('teoria')">📚 Teoría / Leis</button><button class="upload-tab ${uploadMode==='test'?'active':''}" onclick="setUploadMode('test')">📝 Tests de repaso</button><button class="upload-tab ${uploadMode==='supuesto'?'active':''}" onclick="setUploadMode('supuesto')">🏛️ Suposto Práctico</button></div>
-  <div class="drop-zone" onclick="document.getElementById('fi').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)"><div class="dz-icon">${uploadMode==='teoria'?'📄':uploadMode==='supuesto'?'🏛️':'📋'}</div><h3>Arrastra PDFs aquí ou preme</h3><p>${uploadMode==='teoria'?'Leis, temario, apuntamentos':uploadMode==='supuesto'?'PDF do suposto práctico oficial':'Exames e tests de repaso'}</p></div>
-  <input type="file" id="fi" class="file-input" accept=".pdf" multiple onchange="handleFiles(this.files)">
+  <div class="drop-zone" onclick="document.getElementById('fi').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event,'${m.id}')"><div class="dz-icon">${uploadMode==='teoria'?'📄':uploadMode==='supuesto'?'🏛️':'📋'}</div><h3>Arrastra PDFs aquí ou preme</h3><p>${uploadMode==='teoria'?'Leis, temario, apuntamentos':uploadMode==='supuesto'?'PDF do suposto práctico oficial':'Exames e tests de repaso'}</p></div>
+  <input type="file" id="fi" class="file-input" accept=".pdf" multiple onchange="handleFiles(this.files,'${m.id}')">
   <div class="file-list">${files.length?files.map(fileRowHTML).join(''):`<p style="text-align:center;color:var(--muted);font-size:.82rem;padding:16px">Sen ficheiros nesta categoría</p>`}</div></div>`;
 }
 function setUploadMode(m){uploadMode=m;renderContent();}
 function fileRowHTML(f){return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB${f._generating?' · ⏳ generando preguntas...':''}</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':f.type==='supuesto'?'🏛️ Suposto':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;}
-function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files);}
-function handleFiles(files){
-  const m=state.currentMateria;
+function handleDrop(e,mid){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files,mid);}
+function handleFiles(files,mid){
+  const mat=state.materias.find(x=>x.id===mid)||state.currentMateria;
+  if(!mat){console.error('[handleFiles] materia not found mid='+mid);return;}
+  console.log('[handleFiles] materia='+mat.id+' uploadMode='+uploadMode);
   Array.from(files).forEach(file=>{
     if(!file.name.toLowerCase().endsWith('.pdf'))return;
     const reader=new FileReader();
     reader.onload=async(ev)=>{
       const f={id:'f_'+Date.now()+Math.random().toString(36).slice(2),name:file.name,size:file.size,type:uploadMode,data:ev.target.result};
-      m.files.push(f);await dbSaveFile(f,m.id);renderContent();
-      if(f.type!=='supuesto')generateAndCacheQuestions(f,m); // background, no await
+      mat.files.push(f);await dbSaveFile(f,mat.id);renderContent();
+      if(f.type!=='supuesto')generateAndCacheQuestions(f,mat); // background, no await
     };
     reader.readAsDataURL(file);
   });
