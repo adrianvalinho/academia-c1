@@ -1223,16 +1223,35 @@ function renderStats(c,m){
 }
 
 // ── SUPUESTO PRÁCTICO ──
-function renderSupuesto(c,m){
+async function renderSupuesto(c,m){
   setTopBar(m.name,'Suposto Práctico');
   const supFiles=m.files.filter(f=>f.type==='supuesto');
   if(!supFiles.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🏛️</div><h3>Sen ficheiros de suposto</h3><p>Sobe un PDF de suposto práctico na sección "Subir archivos" → pestaña 🏛️ Suposto Práctico.</p><button class="btn btn-primary" onclick="setUploadMode('supuesto');showView('upload')">📁 Subir suposto</button></div>`;return;}
+  // Render skeleton while cache is checked
+  c.innerHTML=`<div class="test-view"><div class="ai-loading" style="padding:30px 0"><div class="spinner"></div><p>Comprobando caché...</p></div></div>`;
+  // Load cache status for all files in parallel
+  const cacheResults=await Promise.allSettled(supFiles.map(f=>dbGetCachedSupuesto(m.id,f.id)));
+  const cached=cacheResults.map(r=>r.status==='fulfilled'&&!!r.value);
+  const numCached=cached.filter(Boolean).length;
+  const histSup=m.history.filter(h=>h.mode==='supuesto');
   c.innerHTML=`<div class="test-view">
     <div class="sup-info-box"><strong>📋 Formato real do exame C1 Xunta de Galicia</strong><br>30 preguntas · ⏱ 60 minutos · Penalización: -0.25 por erro · Non contestar: 0 pts<br>Puntuación: 0 – 25 pts · <strong>Mínimo para aprobar: 12.5 pts</strong></div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">${supFiles.length} suposto${supFiles.length!==1?'s':''}${numCached?` · <span style="color:var(--ok);font-weight:600">💾 ${numCached} en caché ⚡</span>`:''}
+    </p>
     <div style="display:flex;flex-direction:column;gap:10px">
-      ${supFiles.map(f=>`<div style="background:var(--white);border:2px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;gap:12px"><span style="font-size:1.8rem">🏛️</span><div style="flex:1"><div style="font-weight:700;font-size:.9rem">${f.name}</div><div style="font-size:.75rem;color:var(--muted)">${(f.size/1024).toFixed(0)} KB · Gemini xerará caso + 30 preguntas</div></div><button class="btn btn-primary" onclick="startSupuesto('${f.id}')">▶ Iniciar</button></div>`).join('')}
+      ${supFiles.map((f,i)=>{
+        const isCached=cached[i];
+        return`<div style="background:var(--white);border:2px solid ${isCached?'var(--ok)':'var(--border)'};border-radius:12px;padding:16px;display:flex;align-items:center;gap:12px">
+          <span style="font-size:1.8rem">🏛️</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:.9rem">${f.name}</div>
+            <div style="font-size:.75rem;margin-top:2px;${isCached?'color:var(--ok);font-weight:600':'color:var(--muted)'}">${isCached?'✅ En caché · 30 preguntas listas':'🤖 Gemini xerará caso + 30 preguntas'}</div>
+          </div>
+          <button class="btn btn-primary" onclick="startSupuesto('${f.id}')">${isCached?'▶ Iniciar':'▶ Xerar e iniciar'}</button>
+        </div>`;
+      }).join('')}
     </div>
-    ${m.history.filter(h=>h.mode==='supuesto').length?`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:20px"><p style="font-size:.82rem;font-weight:700;margin-bottom:8px">Últimas sesións de suposto</p>${[...m.history.filter(h=>h.mode==='supuesto')].reverse().slice(0,3).map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="font-weight:800;color:${h.pct>=50?'var(--ok)':'var(--ko)'}">${h.score} pts</span><span>${h.pct>=50?'✅ Aprobado':'❌ Suspenso'}</span><span style="margin-left:auto;color:var(--muted)">${h.date}</span></div>`).join('')}</div>`:''}
+    ${histSup.length?`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:20px"><p style="font-size:.82rem;font-weight:700;margin-bottom:8px">Últimas sesións de suposto</p>${[...histSup].reverse().slice(0,3).map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="font-weight:800;color:${h.pct>=50?'var(--ok)':'var(--ko)'}">${h.score} pts</span><span>${h.pct>=50?'✅ Aprobado':'❌ Suspenso'}</span><span style="margin-left:auto;color:var(--muted)">${h.date}</span></div>`).join('')}</div>`:''}
   </div>`;
 }
 
