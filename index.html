@@ -346,6 +346,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .sup-topbar{display:flex;align-items:center;gap:12px;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px;}
 .sup-info-box{background:#eef4fc;border:1px solid var(--accent);border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:.85rem;line-height:1.6;}
 
+/* ── SIMULACRO SUPUESTOS BUTTON ── */
+.supsim-btn{margin:2px 10px 10px;padding:8px 12px;background:linear-gradient(90deg,#002B7A,#003DA5);color:#a0c0ff;border:1px solid #1a5cbf;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;transition:all .2s;}
+.supsim-btn:hover{background:linear-gradient(90deg,#003DA5,#1a5cbf);color:#c8d8ff;}
+
+/* ── MASIVA UPLOAD ── */
+.masiva-row{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.masiva-row select{padding:4px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:.78rem;outline:none;background:var(--white);color:var(--text);cursor:pointer;}
+.masiva-row select:focus{border-color:var(--accent);}
+
 /* ── MOBILE ── */
 .menu-btn{display:none;background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--accent);padding:4px 8px;flex-shrink:0;line-height:1;}
 .sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;}
@@ -365,7 +374,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   .btn{padding:12px 20px;font-size:.9rem;}
   .next-btn,.sim-next-btn,.sim-start-btn{padding:16px;font-size:1rem;}
   .sub-item,.materia-header{padding:11px 12px 11px 14px;min-height:44px;}
-  .add-materia-btn,.simulacro-btn{padding:12px 14px;font-size:.88rem;min-height:44px;}
+  .add-materia-btn,.simulacro-btn,.supsim-btn{padding:12px 14px;font-size:.88rem;min-height:44px;}
+  .masiva-row{flex-wrap:wrap;gap:6px;}
   /* Readable text */
   .q-text{font-size:1rem;}
   .sim-q-text{font-size:1rem;}
@@ -415,6 +425,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   </div>
   <button class="add-materia-btn" onclick="openModal()"><span>＋</span><span>Nova materia</span></button>
   <button class="simulacro-btn" onclick="goSimulacro()"><span>💀</span><span>Simulacro xeral</span></button>
+  <button class="supsim-btn" onclick="goSupSim()"><span>🏛️</span><span>Simulacro Supuestos</span></button>
   <div class="sidebar-nav" id="sidebarNav"></div>
   <div id="sidebarFooter" style="padding:12px 14px;border-top:1px solid rgba(255,255,255,.15);margin-top:auto;flex-shrink:0">
     <div id="sidebarUser" style="font-size:.79rem;color:rgba(255,255,255,.45);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
@@ -561,7 +572,7 @@ function stopParticles(){const p=document.getElementById('particles');p.style.di
 
 // ── SIMULACRO MODE ──
 function enterSimMode(){state.simMode=true;document.body.classList.add('simulacro-mode');document.getElementById('simOverlay').style.display='block';startParticles();}
-function exitSimMode(){state.simMode=false;document.body.classList.remove('simulacro-mode');document.getElementById('simOverlay').style.display='none';stopParticles();clearInterval(timerInterval);}
+function exitSimMode(){state.simMode=false;document.body.classList.remove('simulacro-mode');document.getElementById('simOverlay').style.display='none';stopParticles();clearInterval(timerInterval);clearInterval(supSimTimerInterval);}
 
 function closeMobileSidebar(){const s=document.getElementById('sidebar');s.classList.remove('mobile-open');document.getElementById('sidebarBackdrop').classList.remove('show');}
 function toggleSidebar(){
@@ -577,7 +588,7 @@ function renderSidebar(){
   nav.innerHTML=state.materias.map(m=>{
     const avg=avgScore(m),isOpen=state.currentMateria?.id===m.id;
     return`<div><div class="materia-header ${isOpen?'open':''}" onclick="selectMateria('${m.id}')"><span class="icon">${m.icon}</span><span class="name">${m.name}</span>${avg!==null?`<span class="score-badge">${avg}%</span>`:''}<span class="chevron">▶</span><button class="materia-delete" onclick="event.stopPropagation();deleteMateria('${m.id}')">✕</button></div>
-    ${isOpen?`<div class="materia-sub open"><div class="sub-item ${state.currentView==='upload'?'active':''}" onclick="showView('upload')"><span>📁</span> Subir archivos</div><div class="sub-item ${state.currentView==='teoria'?'active':''}" onclick="showView('teoria')"><span>📚</span> Teoría</div><div class="sub-item ${state.currentView==='tests'?'active':''}" onclick="showView('tests')"><span>📝</span> Tests</div><div class="sub-item ${'supuesto supuesto-quiz supuesto-results'.includes(state.currentView)?'active':''}" onclick="showView('supuesto')"><span>🏛️</span> Supuestos</div><div class="sub-item ${state.currentView==='flashcards'?'active':''}" onclick="showView('flashcards')"><span>🃏</span> Flashcards</div><div class="sub-item ${state.currentView==='fallos'?'active':''}" onclick="showView('fallos')"><span>❌</span> Repasar fallos</div><div class="sub-item ${state.currentView==='stats'?'active':''}" onclick="showView('stats')"><span>📈</span> Estatísticas</div><div class="sub-item ${state.currentView==='history'?'active':''}" onclick="showView('history')"><span>🗂️</span> Historial</div></div>`:''}
+    ${isOpen?`<div class="materia-sub open"><div class="sub-item ${state.currentView==='upload'?'active':''}" onclick="showView('upload')"><span>📁</span> Subir archivos</div><div class="sub-item ${state.currentView==='teoria'?'active':''}" onclick="showView('teoria')"><span>📚</span> Teoría</div><div class="sub-item ${state.currentView==='tests'?'active':''}" onclick="showView('tests')"><span>📝</span> Tests</div><div class="sub-item ${'supuesto supuesto-quiz supuesto-results supuesto-fallos'.includes(state.currentView)?'active':''}" onclick="showView('supuesto')"><span>🏛️</span> Supuestos</div><div class="sub-item ${state.currentView==='flashcards'?'active':''}" onclick="showView('flashcards')"><span>🃏</span> Flashcards</div><div class="sub-item ${state.currentView==='fallos'?'active':''}" onclick="showView('fallos')"><span>❌</span> Repasar fallos</div><div class="sub-item ${state.currentView==='stats'?'active':''}" onclick="showView('stats')"><span>📈</span> Estatísticas</div><div class="sub-item ${state.currentView==='history'?'active':''}" onclick="showView('history')"><span>🗂️</span> Historial</div></div>`:''}
     </div>`;
   }).join('');
 }
@@ -614,11 +625,14 @@ function renderContent(){
   if(state.currentView==='simulacro-quiz'){renderSimQuiz(c);return;}
   if(state.currentView==='simulacro-results'){renderSimResults(c);return;}
   if(state.currentView==='simulacro-history'){renderSimHistory(c);return;}
+  if(state.currentView==='supsim-launch'){renderSupSimLaunch(c);return;}
+  if(state.currentView==='supsim-quiz'){renderSupSimQuiz(c);return;}
+  if(state.currentView==='supsim-results'){renderSupSimResults(c);return;}
   if(state.currentView==='supuesto-quiz'){renderSupuestoQuiz(c);return;}
   if(state.currentView==='supuesto-results'){renderSupuestoResults(c);return;}
   if(!state.currentMateria||state.currentView==='home'){renderHome(c);return;}
   const m=state.currentMateria;
-  ({upload:renderUpload,teoria:renderTeoria,tests:renderTests,quiz:renderQuiz,results:renderResults,history:renderHistory,flashcards:renderFlashcards,fallos:renderFallos,stats:renderStats,supuesto:renderSupuesto}[state.currentView]||renderHome)(c,m);
+  ({upload:renderUpload,teoria:renderTeoria,tests:renderTests,quiz:renderQuiz,results:renderResults,history:renderHistory,flashcards:renderFlashcards,fallos:renderFallos,stats:renderStats,supuesto:renderSupuesto,'supuesto-fallos':renderSupuestoFallos}[state.currentView]||renderHome)(c,m);
 }
 
 function goSimulacro(){
@@ -860,6 +874,223 @@ async function clearSimHistory(){
   simHistorial=[];renderContent();
 }
 
+// ── SIMULACRO SUPUESTOS ──
+function goSupSim(){
+  exitSimMode();
+  state.currentMateria=null;
+  state.currentView='supsim-launch';
+  closeMobileSidebar();renderSidebar();renderContent();
+}
+
+function renderSupSimLaunch(c){
+  setTopBar('🏛️ Simulacro Supuestos','Exame real de suposto práctico C1');
+  const materiasConSup=state.materias.filter(m=>m.files.some(f=>f.type==='supuesto'));
+  const totalSup=state.materias.reduce((t,m)=>t+m.files.filter(f=>f.type==='supuesto').length,0);
+  const canStart=totalSup>=2;
+  c.innerHTML=`<div class="sim-launch">
+    <div class="sim-icon">🏛️</div>
+    <h1>SIMULACRO SUPUESTOS</h1>
+    <p>2 supostos prácticos de materias diferentes.<br>60 preguntas · 120 minutos · Formato exame real.</p>
+    <div class="sim-config-box">
+      <h3>⚙ Configuración</h3>
+      <div class="sim-info">
+        📋 Supostos dispoñibles: <strong>${totalSup}</strong> ficheiro${totalSup!==1?'s':''} en ${materiasConSup.length} materia${materiasConSup.length!==1?'s':''}<br>
+        ⏱ Tempo: <strong>120 minutos</strong><br>
+        📊 Puntuación: <strong>0 – 50 pts</strong> (mínimo 25 para aprobar)<br>
+        ⚠️ Penalización: <strong>−0.25 pts</strong> por resposta incorrecta<br>
+        🎲 Escóllense 2 supostos aleatorios de distintas materias
+      </div>
+    </div>
+    ${!canStart?`<div style="background:#1a1200;border:1px solid var(--warn);border-radius:10px;padding:14px;margin-bottom:16px;color:var(--warn);font-size:.85rem">⚠️ Necesitas polo menos <strong>2 ficheiros de suposto</strong>. Sóbeos en "Subir archivos" → 🏛️ Suposto Práctico.</div>`:''}
+    <button class="sim-start-btn" onclick="launchSupSim()" ${!canStart?'disabled style="opacity:.4;cursor:not-allowed"':''}>▶ COMEZAR SIMULACRO</button>
+    <br><br>
+    <button class="sim-btn sim-btn-secondary" onclick="exitSimMode();state.currentView='home';renderSidebar();renderContent()">← Volver ao inicio</button>
+  </div>`;
+}
+
+async function loadSupuestoForSim(m,fileId){
+  const cached=await dbGetCachedSupuesto(m.id,fileId);
+  if(cached)return cached;
+  let rawData=m.files.find(f=>f.id===fileId)?.data||null;
+  if(!rawData)rawData=await dbGetFileData(fileId);
+  if(!rawData)throw new Error('Non se puideron cargar os datos de "'+m.name+'"');
+  const base64=rawData.includes(',')?rawData.split(',')[1]:rawData;
+  const prompt=`Eres un preparador de oposiciones para el Cuerpo Administrativo C1 de la Xunta de Galicia. Basándote en el siguiente contenido legal, genera un supuesto práctico realista con este formato exacto en JSON:
+{"caso":"Texto del caso práctico (150-200 palabras describiendo la situación de un empleado público o ciudadano que interactúa con la administración)","preguntas":[{"pregunta":"Texto de la pregunta","opciones":["A) ...","B) ...","C) ...","D) ..."],"correcta":0}]}
+Genera exactamente 30 preguntas. Solo devuelve el JSON, sin texto adicional.`;
+  const text=await callClaude([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},{type:'text',text:prompt}]}]);
+  const supData=parseSupuesto(text);
+  if(!supData||!supData.preguntas||supData.preguntas.length<5)throw new Error('Non se puido xerar o suposto de "'+m.name+'"');
+  dbSaveSupuesto(m.id,fileId,supData);
+  return supData;
+}
+
+async function launchSupSim(){
+  const c=document.getElementById('content');
+  const materiasConSup=state.materias.filter(m=>m.files.some(f=>f.type==='supuesto'));
+  const totalSup=state.materias.reduce((t,m)=>t+m.files.filter(f=>f.type==='supuesto').length,0);
+  if(totalSup<2){return;}
+  enterSimMode();
+  c.innerHTML=`<div class="sim-launch"><div class="sim-icon" style="animation:pulse 1s infinite">⚙️</div><h1 style="color:#cc3333">PREPARANDO SIMULACRO</h1><p style="color:#886666">Cargando 2 supostos prácticos...<br>Isto pode tardar uns minutos.</p></div>`;
+  try{
+    let picks=[];
+    if(materiasConSup.length>=2){
+      const shuffled=shuffle([...materiasConSup]);
+      const m1=shuffled[0],f1=shuffle([...m1.files.filter(f=>f.type==='supuesto')])[0];
+      const m2=shuffled[1],f2=shuffle([...m2.files.filter(f=>f.type==='supuesto')])[0];
+      picks=[{m:m1,f:f1},{m:m2,f:f2}];
+    }else{
+      const m=materiasConSup[0];
+      const supFiles=shuffle([...m.files.filter(f=>f.type==='supuesto')]);
+      picks=[{m,f:supFiles[0]},{m,f:supFiles[1]}];
+    }
+    const [r1,r2]=await Promise.allSettled([
+      loadSupuestoForSim(picks[0].m,picks[0].f.id),
+      loadSupuestoForSim(picks[1].m,picks[1].f.id)
+    ]);
+    if(r1.status==='rejected')throw new Error(r1.reason?.message||'Erro cargando suposto 1');
+    if(r2.status==='rejected')throw new Error(r2.reason?.message||'Erro cargando suposto 2');
+    const sup1=r1.value,sup2=r2.value;
+    const qs1=sup1.preguntas.slice(0,30).map(q=>({...q,_materia:picks[0].m.name,_caso:sup1.caso,_supNum:1}));
+    const qs2=sup2.preguntas.slice(0,30).map(q=>({...q,_materia:picks[1].m.name,_caso:sup2.caso,_supNum:2}));
+    supSimQuiz={
+      questions:[...qs1,...qs2],current:0,score:0,answered:false,
+      correctas:0,incorrectas:0,elapsed:0,totalTime:7200,
+      sup1:{materia:picks[0].m.name,caso:sup1.caso},
+      sup2:{materia:picks[1].m.name,caso:sup2.caso}
+    };
+    state.currentView='supsim-quiz';
+    startSupSimTimer();renderContent();
+  }catch(e){
+    exitSimMode();
+    c.innerHTML=`<div class="sim-launch"><div class="sim-icon">❌</div><h1 style="color:#cc3333">ERRO</h1><p style="color:#886666">${e.message}</p><button class="sim-btn sim-btn-secondary" onclick="goSupSim()">Volver</button></div>`;
+  }
+}
+
+function startSupSimTimer(){
+  clearInterval(supSimTimerInterval);
+  supSimTimerInterval=setInterval(()=>{
+    supSimQuiz.elapsed++;
+    const remaining=supSimQuiz.totalTime-supSimQuiz.elapsed;
+    if(remaining<=0){clearInterval(supSimTimerInterval);finishSupSim(true);return;}
+    const el=document.getElementById('supSimTimer');
+    if(el){el.textContent=formatTime(remaining);el.className='sim-timer'+(remaining<600?' critical':remaining<1200?' warning':'');}
+  },1000);
+}
+
+function renderSupSimQuiz(c){
+  if(supSimQuiz.current>=supSimQuiz.questions.length){finishSupSim(false);return;}
+  const q=supSimQuiz.questions[supSimQuiz.current];
+  const pct=Math.round((supSimQuiz.current/supSimQuiz.questions.length)*100);
+  const remaining=supSimQuiz.totalTime-supSimQuiz.elapsed;
+  const scoreDisp=Math.max(0,supSimQuiz.score).toFixed(2);
+  setTopBar('🏛️ Simulacro Supuestos',`Suposto ${q._supNum}/2 · Pregunta ${supSimQuiz.current+1}/60`);
+  c.innerHTML=`<div class="sim-quiz-wrap">
+    <div class="sim-topbar">
+      <div id="supSimTimer" class="sim-timer ${remaining<600?'critical':remaining<1200?'warning':''}">${formatTime(remaining)}</div>
+      <div class="sim-prog">
+        <div class="sim-prog-bar-wrap"><div class="sim-prog-bar" style="width:${pct}%"></div></div>
+        <div class="sim-prog-label"><span>Pregunta ${supSimQuiz.current+1}/${supSimQuiz.questions.length}</span><span class="sim-score-live">📊 ${scoreDisp} pts</span></div>
+      </div>
+    </div>
+    <div class="sup-case-box" style="background:#0d0d18;border-color:#2a1a1a;margin-bottom:12px">
+      <div class="sup-case-header" style="color:#cc3333" onclick="const t=document.getElementById('supSimCase');t.style.display=t.style.display==='none'?'block':'none'">
+        <span>📋 Suposto ${q._supNum}: ${q._materia}</span><span style="font-size:.72rem;color:#664444">▼ Ver/ocultar</span>
+      </div>
+      <div class="sup-case-text" id="supSimCase" style="display:none;color:#ccaaaa">${q._caso}</div>
+    </div>
+    <div class="sim-q-num">Pregunta ${supSimQuiz.current+1}</div>
+    <div class="sim-q-materia">${q._materia}</div>
+    <div class="sim-q-text">${q.pregunta}</div>
+    <div class="sim-options">${q.opciones.map((opt,i)=>`<button class="sim-opt" onclick="supSimChoose(${i})"><span class="letter">${'abcd'[i]})</span><span>${opt}</span></button>`).join('')}</div>
+    <div class="sim-feedback" id="supSimFb"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="sim-next-btn" id="supSimNb" onclick="supSimNextQ()" style="flex:1;display:none">${supSimQuiz.current+1<supSimQuiz.questions.length?'Seguinte →':'Finalizar'}</button>
+      <button id="supSimSkipBtn" onclick="supSimSkip()" style="padding:13px 16px;background:#0d0d18;border:1.5px solid #2a1a1a;border-radius:10px;font-size:.85rem;font-weight:700;cursor:pointer;color:#664444;white-space:nowrap;flex-shrink:0">⏭ Saltar</button>
+    </div>
+  </div>`;
+}
+
+function supSimChoose(i){
+  if(supSimQuiz.answered)return;
+  supSimQuiz.answered=true;
+  const q=supSimQuiz.questions[supSimQuiz.current];
+  document.querySelectorAll('.sim-opt').forEach(b=>b.disabled=true);
+  const skipBtn=document.getElementById('supSimSkipBtn');if(skipBtn)skipBtn.style.display='none';
+  const nb=document.getElementById('supSimNb');if(nb)nb.style.display='block';
+  const fb=document.getElementById('supSimFb');
+  if(i===q.correcta){
+    supSimQuiz.correctas++;
+    supSimQuiz.score+=50/60;
+    document.querySelectorAll('.sim-opt')[i].classList.add('correct');
+    fb.className='sim-feedback show ok';
+    fb.innerHTML=`✅ <strong>Correcto</strong> (+${(50/60).toFixed(2)} pts)`;
+  }else{
+    supSimQuiz.incorrectas++;
+    supSimQuiz.score-=0.25;
+    document.querySelectorAll('.sim-opt')[i].classList.add('incorrect');
+    document.querySelectorAll('.sim-opt')[q.correcta].classList.add('reveal');
+    fb.className='sim-feedback show ko';
+    fb.innerHTML=`❌ <strong>Incorrecto</strong> (−0.25 pts) — Correcta: <strong>${'abcd'[q.correcta]}) ${q.opciones[q.correcta]}</strong>`;
+  }
+}
+
+function supSimSkip(){
+  if(supSimQuiz.answered)return;
+  supSimQuiz.answered=true;
+  const q=supSimQuiz.questions[supSimQuiz.current];
+  document.querySelectorAll('.sim-opt').forEach(b=>b.disabled=true);
+  document.querySelectorAll('.sim-opt')[q.correcta].classList.add('reveal');
+  const skipBtn=document.getElementById('supSimSkipBtn');if(skipBtn)skipBtn.style.display='none';
+  const nb=document.getElementById('supSimNb');if(nb)nb.style.display='block';
+  const fb=document.getElementById('supSimFb');
+  fb.className='sim-feedback show';fb.style.cssText='display:block;background:#0d0d18;padding:12px 14px;border-radius:10px;font-size:.85rem;border-left:3px solid #3a1a1a;color:#664444';
+  fb.innerHTML=`⏭ Saltada (0 pts) — Correcta: <strong>${'abcd'[q.correcta]}) ${q.opciones[q.correcta]}</strong>`;
+}
+
+function supSimNextQ(){supSimQuiz.current++;supSimQuiz.answered=false;if(supSimQuiz.current>=supSimQuiz.questions.length)finishSupSim(false);else renderContent();}
+
+async function finishSupSim(timeOut=false){
+  clearInterval(supSimTimerInterval);
+  const finalScore=Math.max(0,parseFloat(supSimQuiz.score.toFixed(2)));
+  const pct=Math.round((finalScore/50)*100);
+  const entry={score:finalScore,total:60,pct,elapsed:supSimQuiz.elapsed,timeout:timeOut,mode:'supuesto',date:new Date().toLocaleDateString('es-ES'),time:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})};
+  simHistorial.unshift(entry);
+  await dbSaveSimHistorial(entry);
+  state.currentView='supsim-results';
+  renderContent();
+}
+
+function renderSupSimResults(c){
+  const finalScore=Math.max(0,parseFloat(supSimQuiz.score.toFixed(2)));
+  const passed=finalScore>=25;
+  const color=passed?'#22a06b':'#cc3333';
+  const[g,gc]=passed?['✅ APROBADO','high']:['❌ SUSPENSO','low'];
+  const noContestadas=supSimQuiz.questions.length-supSimQuiz.correctas-supSimQuiz.incorrectas;
+  const mins=Math.floor(supSimQuiz.elapsed/60),secs=supSimQuiz.elapsed%60;
+  setTopBar('🏛️ Simulacro Supuestos','Resultado final');
+  c.innerHTML=`<div class="sim-results">
+    <div style="font-size:3rem;margin-bottom:12px">🏛️</div>
+    <div class="big-score" style="color:${color}">${finalScore.toFixed(2)}</div>
+    <div class="score-label" style="color:#886666">de 50 puntos</div>
+    <span class="sim-grade ${gc}">${g}</span>
+    <div class="sim-stats">
+      <div class="sim-stat ok"><div class="n">${supSimQuiz.correctas}</div><div class="l">Correctas</div></div>
+      <div class="sim-stat ko"><div class="n">${supSimQuiz.incorrectas}</div><div class="l">Incorrectas</div></div>
+      <div class="sim-stat tot"><div class="n">${noContestadas}</div><div class="l">Saltadas</div></div>
+      <div class="sim-stat tim"><div class="n">${mins}:${String(secs).padStart(2,'0')}</div><div class="l">Tempo</div></div>
+    </div>
+    <div style="background:#0d0d18;border:1px solid #2a1a1a;border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:.85rem;color:#886666;text-align:left">
+      Mínimo para aprobar: <strong style="color:#e6a817">25 pts</strong> · Correcta: <strong>+${(50/60).toFixed(2)} pts</strong> · Erro: <strong>−0.25 pts</strong><br>
+      ${passed?'<span style="color:#22a06b;font-weight:700">✅ Superaches o mínimo do exame!</span>':'<span style="color:#cc3333;font-weight:700">❌ Non chegaches ao mínimo. Segue practicando!</span>'}
+    </div>
+    <div class="sim-actions">
+      <button class="sim-btn sim-btn-primary" onclick="goSupSim()">🔄 Novo simulacro</button>
+      <button class="sim-btn sim-btn-secondary" onclick="exitSimMode();state.currentView='home';renderSidebar();renderContent()">🏠 Inicio</button>
+    </div>
+  </div>`;
+}
+
 // ── NORMAL QUIZ ──
 function renderHome(c){
   exitSimMode();
@@ -876,14 +1107,29 @@ function renderHome(c){
 let uploadMode='teoria';
 function renderUpload(c,m){
   setTopBar(m.name,'Subir archivos');
-  const files=m.files.filter(f=>f.type===uploadMode);
   const generating=m.files.some(f=>f._generating);
   const cacheBar=m.questionCount
     ?`<div style="background:#f0faf4;border:1px solid var(--ok);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between"><span style="color:var(--ok);font-size:.82rem;font-weight:600">💾 ${m.questionCount} preguntas en caché</span><button class="btn btn-secondary" style="font-size:.75rem;padding:5px 10px" onclick="regenerarPreguntas('${m.id}')">🔄 Rexenerar</button></div>`
     :generating
       ?`<div style="background:#fff8e1;border:1px solid var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:12px"><span style="color:var(--warn);font-size:.82rem">⏳ Xerando preguntas en segundo plano...</span></div>`
       :`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between"><span style="color:var(--muted);font-size:.82rem">Sen preguntas en caché aínda</span>${m.files.length?`<button class="btn btn-secondary" style="font-size:.75rem;padding:5px 10px" onclick="regenerarPreguntas('${m.id}')">✨ Xerar agora</button>`:''}</div>`;
-  c.innerHTML=`<div class="upload-section">${cacheBar}<div class="upload-tabs"><button class="upload-tab ${uploadMode==='teoria'?'active':''}" onclick="setUploadMode('teoria')">📚 Teoría / Leis</button><button class="upload-tab ${uploadMode==='test'?'active':''}" onclick="setUploadMode('test')">📝 Tests de repaso</button><button class="upload-tab ${uploadMode==='supuesto'?'active':''}" onclick="setUploadMode('supuesto')">🏛️ Suposto Práctico</button></div>
+  const tabsHtml=`<div class="upload-tabs"><button class="upload-tab ${uploadMode==='teoria'?'active':''}" onclick="setUploadMode('teoria')">📚 Teoría</button><button class="upload-tab ${uploadMode==='test'?'active':''}" onclick="setUploadMode('test')">📝 Test</button><button class="upload-tab ${uploadMode==='supuesto'?'active':''}" onclick="setUploadMode('supuesto')">🏛️ Suposto</button><button class="upload-tab ${uploadMode==='masiva'?'active':''}" onclick="setUploadMode('masiva')">📦 Masiva</button></div>`;
+  if(uploadMode==='masiva'){
+    const pendingCount=masivaFiles.filter(x=>x.status==='pendente').length;
+    const rows=masivaFiles.map(item=>{
+      const st=item.status==='feito'?'<span style="color:var(--ok)">✅ Subido</span>':item.status==='erro'?'<span style="color:var(--ko)">❌ Erro</span>':item.status==='subindo'?'<span style="color:var(--warn)">⏳...</span>':'Pendente';
+      const matOpts=state.materias.map(mat=>`<option value="${mat.id}"${mat.id===item.materia_id?' selected':''}>${mat.icon} ${mat.name}</option>`).join('');
+      return`<div class="masiva-row"><span style="font-size:1.2rem">📄</span><div style="flex:1;min-width:0"><div style="font-size:.84rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</div><div style="font-size:.73rem;color:var(--muted)">${(item.size/1024).toFixed(0)} KB · ${st}</div></div><select onchange="updateMasivaFile('${item.tempId}','materia_id',this.value)">${matOpts}</select><select onchange="updateMasivaFile('${item.tempId}','tipo',this.value)"><option value="teoria"${item.tipo==='teoria'?' selected':''}>📚 Teoría</option><option value="test"${item.tipo==='test'?' selected':''}>📝 Test</option><option value="supuesto"${item.tipo==='supuesto'?' selected':''}>🏛️ Suposto</option></select>${item.status==='pendente'?`<button onclick="removeMasivaFile('${item.tempId}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;flex-shrink:0">🗑️</button>`:''}</div>`;
+    }).join('');
+    c.innerHTML=`<div class="upload-section">${cacheBar}${tabsHtml}
+      <div class="drop-zone" onclick="document.getElementById('fiMasiva').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleMasivaDrop(event)"><div class="dz-icon">📦</div><h3>Arrastra múltiples PDFs aquí</h3><p>Asigna materia e tipo a cada ficheiro por separado</p></div>
+      <input type="file" id="fiMasiva" class="file-input" accept=".pdf" multiple onchange="addMasivaFiles(this.files)">
+      ${masivaFiles.length?`<div id="masivaProgBox" style="display:none" class="masiva-prog"></div><div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">${rows}</div><div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" onclick="uploadAllMasiva()" ${pendingCount?'':'disabled style="opacity:.5;cursor:default"'}>📤 Subir todos (${pendingCount})</button><button class="btn btn-secondary" onclick="masivaFiles=masivaFiles.filter(x=>x.status!=='feito');renderContent()">🗑️ Limpar feitos</button></div>`:`<p style="text-align:center;color:var(--muted);font-size:.82rem;padding:16px">Engade PDFs para asignar e subir en lote</p>`}
+    </div>`;
+    return;
+  }
+  const files=m.files.filter(f=>f.type===uploadMode);
+  c.innerHTML=`<div class="upload-section">${cacheBar}${tabsHtml}
   <div class="drop-zone" onclick="document.getElementById('fi').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event,'${m.id}')"><div class="dz-icon">${uploadMode==='teoria'?'📄':uploadMode==='supuesto'?'🏛️':'📋'}</div><h3>Arrastra PDFs aquí ou preme</h3><p>${uploadMode==='teoria'?'Leis, temario, apuntamentos':uploadMode==='supuesto'?'PDF do suposto práctico oficial':'Exames e tests de repaso'}</p></div>
   <input type="file" id="fi" class="file-input" accept=".pdf" multiple onchange="handleFiles(this.files,'${m.id}')">
   <div class="file-list">${files.length?files.map(fileRowHTML).join(''):`<p style="text-align:center;color:var(--muted);font-size:.82rem;padding:16px">Sen ficheiros nesta categoría</p>`}</div></div>`;
@@ -907,6 +1153,44 @@ function handleFiles(files,mid){
   });
 }
 async function deleteFile(fid){state.currentMateria.files=state.currentMateria.files.filter(f=>f.id!==fid);await dbDeleteFile(fid);await dbDeleteQuestionsByFile(fid);state.currentMateria.questionCount=await dbCountCachedQuestions(state.currentMateria.id);renderContent();}
+
+function handleMasivaDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');addMasivaFiles(e.dataTransfer.files);}
+function addMasivaFiles(fileList){
+  Array.from(fileList).filter(f=>f.name.toLowerCase().endsWith('.pdf')).forEach(file=>{
+    const tempId='mv_'+Date.now()+Math.random().toString(36).slice(2);
+    masivaFiles.push({tempId,file,name:file.name,size:file.size,materia_id:state.currentMateria?.id||state.materias[0]?.id||'',tipo:'teoria',status:'pendente'});
+  });
+  renderContent();
+}
+function updateMasivaFile(tempId,field,value){const f=masivaFiles.find(x=>x.tempId===tempId);if(f)f[field]=value;}
+function removeMasivaFile(tempId){masivaFiles=masivaFiles.filter(x=>x.tempId!==tempId);renderContent();}
+async function uploadAllMasiva(){
+  const pending=masivaFiles.filter(x=>x.status==='pendente');
+  if(!pending.length)return;
+  pending.forEach(x=>x.status='subindo');
+  renderContent();
+  let done=0;
+  const box=document.getElementById('masivaProgBox');
+  if(box){box.style.display='block';box.textContent=`📤 Subindo... 0/${pending.length}`;}
+  await Promise.allSettled(pending.map(item=>new Promise(resolve=>{
+    const mat=state.materias.find(x=>x.id===item.materia_id);
+    if(!mat){item.status='erro';done++;resolve();return;}
+    const reader=new FileReader();
+    reader.onload=async(ev)=>{
+      const f={id:'f_'+Date.now()+Math.random().toString(36).slice(2),name:item.name,size:item.size,type:item.tipo,data:ev.target.result};
+      mat.files.push(f);
+      await dbSaveFile(f,mat.id);
+      if(f.type!=='supuesto')generateAndCacheQuestions(f,mat,true);
+      item.status='feito';done++;
+      const b=document.getElementById('masivaProgBox');
+      if(b)b.textContent=`📤 Subindo... ${done}/${pending.length}`;
+      resolve();
+    };
+    reader.onerror=()=>{item.status='erro';done++;resolve();};
+    reader.readAsDataURL(item.file);
+  })));
+  renderContent();
+}
 
 function renderTeoria(c,m){
   setTopBar(m.name,'Teoría e leis');
@@ -958,6 +1242,9 @@ let quiz={questions:[],current:0,score:0,answered:false,wrongs:[]};
 let fc={questions:[],current:0,sabido:0,noSabido:0,revealed:false};
 let supuesto={caso:'',questions:[],current:0,score:0,answered:false,correctas:0,incorrectas:0,elapsed:0,totalTime:3600,fileId:null};
 let supuestoTimerInterval=null;
+let supSimQuiz={questions:[],current:0,score:0,answered:false,correctas:0,incorrectas:0,elapsed:0,totalTime:7200,sup1:null,sup2:null};
+let supSimTimerInterval=null;
+let masivaFiles=[];
 const LETTERS=['a','b','c','d'];
 
 async function startQuiz(mode){
@@ -1045,6 +1332,16 @@ async function generateAndCacheQuestions(file,materia,quiet=false){
     if(fileObj)delete fileObj._generating;
     if(!quiet)renderContent();
   }
+}
+
+async function regenerarSupuesto(fid){
+  if(!confirm('Rexenerar este suposto? Borrará a caché e xerará un novo con Gemini.'))return;
+  const m=state.currentMateria;
+  if(!sb||!m)return;
+  const c=document.getElementById('content');
+  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Borrando caché...</h3></div>`;
+  try{await sb.from('preguntas_cache').delete().eq('materia_id',m.id).eq('archivo_id','_sup_'+fid);}catch(e){}
+  startSupuesto(fid);
 }
 
 async function regenerarPreguntas(materiaId){
@@ -1183,6 +1480,44 @@ async function clearFallos(mid){
   renderFallos(document.getElementById('content'),state.currentMateria);
 }
 
+// ── FALLOS DE SUPUESTO ──
+async function renderSupuestoFallos(c,m){
+  setTopBar(m.name,'Fallos de Suposto Práctico');
+  c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Cargando fallos...</h3></div>`;
+  const fallos=await dbLoadFallos(m.id);
+  // Supuesto fallos have {pregunta, opciones, correcta} format; test fallos have {q, opts, ans}
+  const supFallos=fallos.filter(f=>f.pregunta?.pregunta!==undefined);
+  if(!supFallos.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🎯</div><h3>Sen fallos de suposto</h3><p>Cando falles preguntas nun suposto práctico aparecerán aquí para repasar.</p><button class="btn btn-secondary" onclick="showView('supuesto')">← Volver</button></div>`;return;}
+  const seen=new Set();
+  const unique=supFallos.filter(f=>{const k=f.pregunta?.pregunta;if(!k||seen.has(k))return false;seen.add(k);return true;});
+  c.innerHTML=`<div class="fallos-wrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <p style="font-size:.82rem;color:var(--muted)">${unique.length} fallo${unique.length!==1?'s':''} pendente${unique.length!==1?'s':''} de repasar</p>
+      <button class="btn btn-secondary" onclick="showView('supuesto')" style="font-size:.78rem;padding:5px 12px">← Volver</button>
+    </div>
+    ${unique.map(f=>{
+      const q=f.pregunta;
+      return`<div class="fallo-item" id="sf_${f.id}">
+        <div class="fq">${q.pregunta}</div>
+        <div class="fa">✓ ${LETTERS[q.correcta]}) ${q.opciones[q.correcta]}</div>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+          <button class="fallo-superado-btn" onclick="markFalloSuperado('${f.id}','${m.id}')">✓ Superada</button>
+          <span style="font-size:.72rem;color:var(--muted)">${f.created_at?new Date(f.created_at).toLocaleDateString('gl-ES'):''}</span>
+        </div>
+      </div>`;
+    }).join('')}
+    <button class="btn btn-danger" style="margin-top:8px" onclick="clearSupuestoFallos('${m.id}')">🗑️ Borrar todos os fallos de suposto</button>
+  </div>`;
+}
+
+async function clearSupuestoFallos(mid){
+  if(!confirm('Borrar todos os fallos de suposto?'))return;
+  const fallos=await dbLoadFallos(mid);
+  const ids=fallos.filter(f=>f.pregunta?.pregunta!==undefined).map(f=>f.id);
+  await Promise.allSettled(ids.map(id=>dbDeleteFallo(id)));
+  renderSupuestoFallos(document.getElementById('content'),state.currentMateria);
+}
+
 // ── STATS ──
 function calcRacha(){
   const days=new Set();
@@ -1224,10 +1559,12 @@ function renderStats(c,m){
   setTopBar(m.name,'Estatísticas');
   const racha=calcRacha();
   const h=m.history;
-  const avg=h.length?Math.round(h.reduce((s,e)=>s+e.pct,0)/h.length):0;
-  const best=h.length?Math.max(...h.map(e=>e.pct)):0;
-  const aprobados=h.filter(e=>e.pct>=70).length;
-  c.innerHTML=`<div class="stats-wrap"><div class="racha-card"><div class="racha-num">${racha>=7?'🔥':'⭐'} ${racha}</div><div><div class="racha-label">día${racha!==1?'s':''} de racha</div><div class="racha-sub">Días consecutivos estudando (todas as materias)</div></div></div><div class="stats-section"><h3>📊 ${m.name}</h3><div class="stats-grid"><div class="stat-box tot"><div class="n">${h.length}</div><div class="l">Tests feitos</div></div><div class="stat-box ${avg>=70?'ok':avg>=50?'':'ko'}"><div class="n">${avg}%</div><div class="l">Media</div></div><div class="stat-box ok"><div class="n">${best}%</div><div class="l">Mellor nota</div></div></div></div>${h.length>=2?`<div class="stats-section"><h3>📈 Progreso</h3>${renderProgressChart(h)}</div>`:''}${h.length?`<div class="stats-section"><h3>🗓️ Últimas sesións</h3>${[...h].reverse().slice(0,10).map(e=>{const ml=e.mode==='supuesto'?'🏛️ Suposto':e.mode==='ia'?'✨ IA':'📋 Banco';const sl=e.mode==='supuesto'?`${e.score} pts`:`${e.score}/${e.total}`;return`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.82rem"><span style="font-weight:800;min-width:36px;color:${e.pct>=70?'var(--ok)':e.pct>=50?'var(--warn)':'var(--ko)'}">${e.pct}%</span><span>${sl} · ${ml}</span><span style="margin-left:auto;color:var(--muted)">${e.date}</span></div>`;}).join('')}</div>`:'<p style="color:var(--muted);font-size:.85rem;text-align:center;padding:20px">Completa tests para ver estatísticas.</p>'}</div>`;
+  const hTest=h.filter(e=>e.mode!=='supuesto');
+  const avg=hTest.length?Math.round(hTest.reduce((s,e)=>s+e.pct,0)/hTest.length):0;
+  const best=hTest.length?Math.max(...hTest.map(e=>e.pct)):0;
+  const histSup=h.filter(e=>e.mode==='supuesto');
+  const supStatsHtml=histSup.length?`<div class="stats-section"><h3>🏛️ Supostos Prácticos</h3><div class="stats-grid" style="grid-template-columns:repeat(4,1fr)"><div class="stat-box tot"><div class="n">${histSup.length}</div><div class="l">Sesións</div></div><div class="stat-box ${(histSup.reduce((s,e)=>s+e.score,0)/histSup.length)>=12.5?'ok':'ko'}"><div class="n">${(histSup.reduce((s,e)=>s+e.score,0)/histSup.length).toFixed(1)}</div><div class="l">Media pts</div></div><div class="stat-box ok"><div class="n">${Math.max(...histSup.map(e=>e.score)).toFixed(1)}</div><div class="l">Mellor nota</div></div><div class="stat-box ${histSup.filter(e=>e.score>=12.5).length/histSup.length>=.5?'ok':'ko'}"><div class="n">${Math.round(histSup.filter(e=>e.score>=12.5).length/histSup.length*100)}%</div><div class="l">Taxa aprobado</div></div></div>${histSup.length>=2?`<div style="margin-top:14px">${renderProgressChart(histSup)}</div>`:''}</div>`:'';
+  c.innerHTML=`<div class="stats-wrap"><div class="racha-card"><div class="racha-num">${racha>=7?'🔥':'⭐'} ${racha}</div><div><div class="racha-label">día${racha!==1?'s':''} de racha</div><div class="racha-sub">Días consecutivos estudando (todas as materias)</div></div></div><div class="stats-section"><h3>📊 ${m.name} — Tests</h3><div class="stats-grid"><div class="stat-box tot"><div class="n">${hTest.length}</div><div class="l">Tests feitos</div></div><div class="stat-box ${avg>=70?'ok':avg>=50?'':'ko'}"><div class="n">${avg}%</div><div class="l">Media</div></div><div class="stat-box ok"><div class="n">${best}%</div><div class="l">Mellor nota</div></div></div></div>${hTest.length>=2?`<div class="stats-section"><h3>📈 Progreso (tests)</h3>${renderProgressChart(hTest)}</div>`:''}${supStatsHtml}${h.length?`<div class="stats-section"><h3>🗓️ Últimas sesións</h3>${[...h].reverse().slice(0,10).map(e=>{const ml=e.mode==='supuesto'?'🏛️ Suposto':e.mode==='ia'?'✨ IA':'📋 Banco';const sl=e.mode==='supuesto'?`${e.score} pts`:`${e.score}/${e.total}`;return`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.82rem"><span style="font-weight:800;min-width:36px;color:${e.pct>=70?'var(--ok)':e.pct>=50?'var(--warn)':'var(--ko)'}">${e.pct}%</span><span>${sl} · ${ml}</span><span style="margin-left:auto;color:var(--muted)">${e.date}</span></div>`;}).join('')}</div>`:'<p style="color:var(--muted);font-size:.85rem;text-align:center;padding:20px">Completa tests para ver estatísticas.</p>'}</div>`;
 }
 
 // ── SUPUESTO PRÁCTICO ──
@@ -1255,11 +1592,17 @@ async function renderSupuesto(c,m){
             <div style="font-weight:700;font-size:.9rem">${f.name}</div>
             <div style="font-size:.75rem;margin-top:2px;${isCached?'color:var(--ok);font-weight:600':'color:var(--muted)'}">${isCached?'✅ En caché · 30 preguntas listas':'🤖 Gemini xerará caso + 30 preguntas'}</div>
           </div>
-          <button class="btn btn-primary" onclick="startSupuesto('${f.id}')">${isCached?'▶ Iniciar':'▶ Xerar e iniciar'}</button>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            ${isCached?`<button class="btn btn-secondary" style="font-size:.75rem;padding:5px 10px" onclick="regenerarSupuesto('${f.id}')">🔄</button>`:''}
+            <button class="btn btn-primary" onclick="startSupuesto('${f.id}')">${isCached?'▶ Iniciar':'▶ Xerar e iniciar'}</button>
+          </div>
         </div>`;
       }).join('')}
     </div>
-    ${histSup.length?`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:20px"><p style="font-size:.82rem;font-weight:700;margin-bottom:8px">Últimas sesións de suposto</p>${[...histSup].reverse().slice(0,3).map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="font-weight:800;color:${h.pct>=50?'var(--ok)':'var(--ko)'}">${h.score} pts</span><span>${h.pct>=50?'✅ Aprobado':'❌ Suspenso'}</span><span style="margin-left:auto;color:var(--muted)">${h.date}</span></div>`).join('')}</div>`:''}
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="showView('supuesto-fallos')">❌ Repasar fallos de suposto</button>
+    </div>
+    ${histSup.length?`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:16px"><p style="font-size:.82rem;font-weight:700;margin-bottom:8px">Últimas sesións de suposto</p>${[...histSup].reverse().slice(0,3).map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="font-weight:800;color:${h.pct>=50?'var(--ok)':'var(--ko)'}">${h.score} pts</span><span>${h.pct>=50?'✅ Aprobado':'❌ Suspenso'}</span><span style="margin-left:auto;color:var(--muted)">${h.date}</span></div>`).join('')}</div>`:''}
   </div>`;
 }
 
@@ -1379,6 +1722,7 @@ function supuestoChoose(i){
     supuesto.score-=0.25;
     document.querySelectorAll('.opt-btn')[i].classList.add('incorrect');
     document.querySelectorAll('.opt-btn')[q.correcta].classList.add('reveal');
+    if(state.currentMateria)dbSaveFallo(state.currentMateria.id,q);
     fb.className='feedback-box show ko';
     fb.innerHTML=`❌ <strong>Incorrecto</strong> <small>(-0.25 pts)</small> — Correcta: <strong>${LETTERS[q.correcta]}) ${q.opciones[q.correcta]}</strong>`;
   }
