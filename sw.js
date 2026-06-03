@@ -1,5 +1,5 @@
-// Academia C1 Service Worker v2
-const CACHE = 'academia-c1-v2';
+// Academia C1 Service Worker v3
+const CACHE = 'academia-c1-v3';
 const PRECACHE = ['/', '/index.html', '/icon.svg', '/manifest.json'];
 
 self.addEventListener('install', e => {
