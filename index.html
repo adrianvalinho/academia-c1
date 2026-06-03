@@ -546,9 +546,9 @@ async function dbGetFileData(fid){
   return data?.[0]?.data||null;
 }
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
-async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return;await sb.from('preguntas_cache').upsert({materia_id:mid,archivo_id:fid,pregunta:questions},{onConflict:'archivo_id'});}
-async function dbGetCachedQuestions(mid,count){if(!sb)return[];const asc=Math.random()>.5;const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).not('archivo_id','like','_sup_%').order('id',{ascending:asc});if(!data?.length)return[];const all=data.flatMap(r=>Array.isArray(r.pregunta)?r.pregunta:[r.pregunta]);return shuffle(all).slice(0,count);}
-async function dbCountCachedQuestions(mid){if(!sb)return 0;const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).not('archivo_id','like','_sup_%');if(!data?.length)return 0;return data.reduce((s,r)=>s+(Array.isArray(r.pregunta)?r.pregunta.length:1),0);}
+async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));await sb.from('preguntas_cache').insert(rows);}
+async function dbGetCachedQuestions(mid,count){if(!sb)return[];const asc=Math.random()>.5;const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).order('id',{ascending:asc}).limit(count*3);if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
+async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);return count||0;}
 async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
 async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_cache').delete().eq('materia_id',mid);}
 // fallos table: CREATE TABLE fallos(id uuid default gen_random_uuid() primary key, materia_id text, user_id text, pregunta jsonb, created_at timestamptz default now());
@@ -556,7 +556,7 @@ async function dbSaveFallo(mid,q){if(!sb)return;try{await sb.from('fallos').inse
 async function dbLoadFallos(mid){if(!sb)return[];const uid=getUserId();try{let q=sb.from('fallos').select('*').eq('materia_id',mid).order('created_at',{ascending:false});if(uid)q=q.eq('user_id',uid);const{data}=await q;return data||[];}catch(e){return[];}}
 async function dbDeleteFallo(id){if(!sb)return;try{await sb.from('fallos').delete().eq('id',id);}catch(e){}}
 async function dbGetCachedSupuesto(mid,fid){if(!sb)return null;const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).eq('archivo_id','_sup_'+fid).limit(1);return data?.[0]?.pregunta||null;}
-async function dbSaveSupuesto(mid,fid,sdata){if(!sb)return;try{await sb.from('preguntas_cache').upsert({materia_id:mid,archivo_id:'_sup_'+fid,pregunta:sdata},{onConflict:'archivo_id'});}catch(e){}}
+async function dbSaveSupuesto(mid,fid,sdata){if(!sb)return;try{await sb.from('preguntas_cache').delete().eq('materia_id',mid).eq('archivo_id','_sup_'+fid);await sb.from('preguntas_cache').insert({materia_id:mid,archivo_id:'_sup_'+fid,pregunta:sdata});}catch(e){}}
 
 
 // ── PARTICLES ──
