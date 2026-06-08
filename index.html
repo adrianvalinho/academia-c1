@@ -546,7 +546,7 @@ async function dbGetFileData(fid){
   return data?.[0]?.data||null;
 }
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
-async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));await sb.from('preguntas_cache').insert(rows);}
+async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return 0;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));const{error}=await sb.from('preguntas_cache').insert(rows);if(error){console.error('dbSaveQuestions: fallo al guardar en caché',error);return 0;}return rows.length;}
 async function dbGetCachedQuestions(mid,count){if(!sb)return[];const asc=Math.random()>.5;const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).order('id',{ascending:asc}).limit(count*3);if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
 async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);return count||0;}
 async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
@@ -1325,9 +1325,9 @@ async function generateAndCacheQuestions(file,materia,quiet=false){
     );
     const results=await Promise.all(calls);
     const unique=results.flat().filter((q,i,arr)=>arr.findIndex(x=>x.q===q.q)===i);
-    await dbSaveQuestions(materia.id,file.id,unique);
+    const saved=await dbSaveQuestions(materia.id,file.id,unique);
     const m=state.materias.find(x=>x.id===materia.id);
-    if(m)m.questionCount=(m.questionCount||0)+unique.length;
+    if(m)m.questionCount=(m.questionCount||0)+saved;
   }finally{
     if(fileObj)delete fileObj._generating;
     if(!quiet)renderContent();
