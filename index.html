@@ -546,8 +546,8 @@ async function dbGetFileData(fid){
   return data?.[0]?.data||null;
 }
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
-async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return 0;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));const{error}=await sb.from('preguntas_cache').insert(rows);if(error){console.error('dbSaveQuestions: fallo al guardar en caché',error);return 0;}return rows.length;}
-async function dbGetCachedQuestions(mid,count){if(!sb)return[];const asc=Math.random()>.5;const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).order('id',{ascending:asc}).limit(count*3);if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
+async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return 0;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));const delays=[0,800,2000];for(let attempt=0;attempt<delays.length;attempt++){if(delays[attempt])await new Promise(r=>setTimeout(r,delays[attempt]));const{error}=await sb.from('preguntas_cache').insert(rows);if(!error)return rows.length;const isTransient=!error.code||error.status>=500;if(!isTransient||attempt===delays.length-1){console.error('dbSaveQuestions: fallo definitivo',{fid,attempt,error});throw error;}console.warn(`dbSaveQuestions: intento ${attempt+1} fallido, reintentando...`,error);}return 0;}
+async function dbGetCachedQuestions(mid,count){if(!sb)return[];const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).not('archivo_id','like','_sup_%').limit(5000);if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
 async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);return count||0;}
 async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
 async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_cache').delete().eq('materia_id',mid);}
@@ -1100,7 +1100,7 @@ function renderHome(c){
   const rachaHtml=racha>0?`<div class="racha-home"><span style="font-size:2rem;line-height:1">${racha>=7?'🔥':'⭐'}</span><div><div style="font-size:1.1rem;font-weight:800">${racha} día${racha!==1?'s':''} de racha</div><div style="font-size:.8rem;opacity:.8">Días consecutivos estudando</div></div></div>`:'';
   c.innerHTML=rachaHtml+`<div class="home-grid">`+state.materias.map(m=>{
     const avg=avgScore(m);
-    return`<div class="home-card" onclick="selectMateria('${m.id}')"><div class="hc-icon">${m.icon}</div><h3>${m.name}</h3><p>${m.files.filter(f=>f.type==='teoria').length} teoría · ${m.files.filter(f=>f.type==='test').length} test · ${m.history.length} sesiones</p>${m.questionCount?`<p style="font-size:.75rem;color:var(--ok);margin-top:2px;margin-bottom:0">💾 ${m.questionCount} preguntas</p>`:m.files.some(f=>f._generating)?`<p style="font-size:.75rem;color:var(--warn);margin-top:2px;margin-bottom:0">⏳ Generando...</p>`:''}<div class="pm"><div class="pm-bar" style="width:${avg||0}%"></div></div></div>`;
+    return`<div class="home-card" onclick="selectMateria('${m.id}')"><div class="hc-icon">${m.icon}</div><h3>${m.name}</h3><p>${m.files.filter(f=>f.type==='teoria').length} teoría · ${m.files.filter(f=>f.type==='test').length} test · ${m.history.length} sesiones</p>${m.questionCount?`<p style="font-size:.75rem;color:var(--ok);margin-top:2px;margin-bottom:0">💾 ${m.questionCount} preguntas</p>`:m.files.some(f=>f._generating)?`<p style="font-size:.75rem;color:var(--warn);margin-top:2px;margin-bottom:0">⏳ Generando...</p>`:m.files.some(f=>f._generateError)?`<p style="font-size:.75rem;color:var(--ko);margin-top:2px;margin-bottom:0">⚠️ Fallo ao gardar</p>`:''}<div class="pm"><div class="pm-bar" style="width:${avg||0}%"></div></div></div>`;
   }).join('')+`</div>`;
 }
 
@@ -1135,7 +1135,7 @@ function renderUpload(c,m){
   <div class="file-list">${files.length?files.map(fileRowHTML).join(''):`<p style="text-align:center;color:var(--muted);font-size:.82rem;padding:16px">Sen ficheiros nesta categoría</p>`}</div></div>`;
 }
 function setUploadMode(m){uploadMode=m;renderContent();}
-function fileRowHTML(f){return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB${f._generating?' · ⏳ generando preguntas...':''}</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':f.type==='supuesto'?'🏛️ Suposto':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;}
+function fileRowHTML(f){return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB${f._generating?' · ⏳ generando preguntas...':f._generateError?' · ⚠️ Fallo ao gardar':''}</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':f.type==='supuesto'?'🏛️ Suposto':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;}
 function handleDrop(e,mid){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files,mid);}
 function handleFiles(files,mid){
   const mat=state.materias.find(x=>x.id===mid)||state.currentMateria;
@@ -1172,6 +1172,7 @@ async function uploadAllMasiva(){
   let done=0;
   const box=document.getElementById('masivaProgBox');
   if(box){box.style.display='block';box.textContent=`📤 Subindo... 0/${pending.length}`;}
+  const toGenerate=[];
   await Promise.allSettled(pending.map(item=>new Promise(resolve=>{
     const mat=state.materias.find(x=>x.id===item.materia_id);
     if(!mat){item.status='erro';done++;resolve();return;}
@@ -1180,7 +1181,7 @@ async function uploadAllMasiva(){
       const f={id:'f_'+Date.now()+Math.random().toString(36).slice(2),name:item.name,size:item.size,type:item.tipo,data:ev.target.result};
       mat.files.push(f);
       await dbSaveFile(f,mat.id);
-      if(f.type!=='supuesto')generateAndCacheQuestions(f,mat,true);
+      if(f.type!=='supuesto')toGenerate.push({f,mat});
       item.status='feito';done++;
       const b=document.getElementById('masivaProgBox');
       if(b)b.textContent=`📤 Subindo... ${done}/${pending.length}`;
@@ -1189,6 +1190,11 @@ async function uploadAllMasiva(){
     reader.onerror=()=>{item.status='erro';done++;resolve();};
     reader.readAsDataURL(item.file);
   })));
+  for(let i=0;i<toGenerate.length;i++){
+    const{f,mat}=toGenerate[i];
+    if(box)box.textContent=`✨ Xerando preguntas... ${i+1}/${toGenerate.length} (${f.name})`;
+    await generateAndCacheQuestions(f,mat,true);
+  }
   renderContent();
 }
 
@@ -1224,7 +1230,7 @@ function renderTests(c,m){
   const banco=m.files.filter(f=>f.type==='test').length,teoria=m.files.filter(f=>f.type==='teoria').length;
   c.innerHTML=`<div class="test-view">
     ${m.temario?`<div class="temario-hint"><strong>📌 A IA só xerará preguntas sobre:</strong>${m.temario}</div>`:''}
-    ${m.questionCount?`<div style="background:#f0faf4;border:1px solid var(--ok);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--ok);font-weight:600">💾 ${m.questionCount} preguntas en caché · Carga instantánea ⚡</div>`:m.files.some(f=>f._generating)?`<div style="background:#fff8e1;border:1px solid var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--warn)">⏳ Xerando preguntas en segundo plano...</div>`:''}
+    ${m.questionCount?`<div style="background:#f0faf4;border:1px solid var(--ok);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--ok);font-weight:600">💾 ${m.questionCount} preguntas en caché · Carga instantánea ⚡</div>`:m.files.some(f=>f._generating)?`<div style="background:#fff8e1;border:1px solid var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--warn)">⏳ Xerando preguntas en segundo plano...</div>`:m.files.some(f=>f._generateError)?`<div style="background:#fff0f0;border:1px solid var(--ko);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--ko)">⚠️ Algúns arquivos fallaron ao gardar preguntas. Revisa a lista de ficheiros.</div>`:''}
     <div class="test-options-grid">
       <div class="test-option-card" onclick="${banco||m.questionCount?"startQuiz('banco')":"alert('Sobe primeiro PDFs de test.')"}"><div class="toc-icon">📋</div><h3>Test de banco</h3><p>${banco?`${banco} ficheiro${banco>1?'s':''}`:' Sen ficheiros'}</p></div>
       <div class="test-option-card" onclick="${teoria||m.questionCount?"startQuiz('ia')":"alert('Sobe primeiro PDFs de teoría.')"}"><div class="toc-icon">✨</div><h3>Test xerado por IA</h3><p>${teoria?`${teoria} ficheiro${teoria>1?'s':''}`:' Sen ficheiros'}${m.temario?' · Só temario':''}</p></div>
@@ -1309,7 +1315,7 @@ async function extractBancoQuestions(m){
 
 async function generateAndCacheQuestions(file,materia,quiet=false){
   const fileObj=materia.files.find(x=>x.id===file.id);
-  if(fileObj)fileObj._generating=true;
+  if(fileObj){fileObj._generating=true;delete fileObj._generateError;}
   if(!quiet)renderContent();
   try{
     const data=await dbGetFileData(file.id);
@@ -1328,6 +1334,9 @@ async function generateAndCacheQuestions(file,materia,quiet=false){
     const saved=await dbSaveQuestions(materia.id,file.id,unique);
     const m=state.materias.find(x=>x.id===materia.id);
     if(m)m.questionCount=(m.questionCount||0)+saved;
+  }catch(e){
+    console.error('generateAndCacheQuestions: error en archivo',file.name,e);
+    if(fileObj)fileObj._generateError=true;
   }finally{
     if(fileObj)delete fileObj._generating;
     if(!quiet)renderContent();
