@@ -1380,7 +1380,8 @@ function parseSolucionesLiteral(text){
   try{r=JSON.parse(s);}catch(e){throw new Error('JSON de solucións inválido: '+e.message);}
   if(r.soluciones===null)return null;
   if(!Array.isArray(r.soluciones))throw new Error('JSON de solucións con formato inesperado.');
-  return r.soluciones;
+  // Normaliza variacións tipográficas (minúsculas, espazos) antes de validar/usar a letra
+  return r.soluciones.map(s=>({...s,letra:typeof s.letra==='string'?s.letra.trim().toUpperCase():s.letra}));
 }
 
 function parsePreguntasLiteral(text){
