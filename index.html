@@ -469,7 +469,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 <script>
 const SUPABASE_URL='https://dcrurbriawuxcrmvihvi.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcnVyYnJpYXd1eGNybXZpaHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjkyNzAsImV4cCI6MjA5MDc0NTI3MH0.0Q3iV6UqC3B-DVWerj3GL0jYgAqCXV_zaoqwfciyGlY';
-const ANTHROPIC_KEY='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';
 
 const TEMARIO_PRESET={'constitución española':'Título preliminar, Título I (excepto Capítulo III tercero), Título II, Título III (excepto Capítulos II e III), Título IV, Título V y Título VIII.','constitución':'Título preliminar, Título I (excepto Capítulo III tercero), Título II, Título III (excepto Capítulos II e III), Título IV, Título V y Título VIII.','estatuto de autonomía de galicia':'Título preliminar, Título I, Título II, Título III y Título V.','estatuto de autonomía':'Título preliminar, Título I, Título II, Título III y Título V.','unión europea':'Derecho derivado: reglamentos, directivas, decisiones, recomendaciones y dictámenes.','fuentes del derecho europeo':'Actos jurídicos de la Unión, procedimientos de adopción y otras disposiciones según el TFUE.','instituciones de la unión europea':'El Parlamento Europeo, el Consejo Europeo, el Consejo y la Comisión. Otras instituciones.','competencias de la unión europea':'El marco de atribuciones concedidas por los tratados.','prevención de riesgos laborales':'Solo el Capítulo III de la Ley 31/1995.','procedimiento administrativo':'Títulos preliminar, I, II, III, IV y V de la Ley 39/2015.','régimen jurídico':'Capítulos I, II (excepto subsección 2ª sección 3ª), III, IV y V del título preliminar de la Ley 40/2015.','administración de galicia':'Títulos preliminar, I, II y Capítulo I del Título III de la Ley 16/2010.','contratos del sector público':'Título preliminar, Libro primero (excepto Capítulo V del Título I) y Capítulo I del Título I del Libro segundo de la Ley 9/2017.','subvenciones de galicia':'Títulos preliminar e I de la Ley 9/2007.','empleo público de galicia':'Títulos I al IX de la Ley 2/2015.','régimen financiero':'Título preliminar y Capítulos I e III del Título III del Decreto legislativo 1/1999.','discapacidad':'Título preliminar, Título I (sección 1ª capítulo V y capítulo VIII) y Título II del RDL 1/2013.','transparencia':'Título preliminar, Título I (capítulos I, II, IV, V) y Título II (secciones 1ª, 2ª y 3ª capítulo I) de la Ley 1/2016.','igualdad':'Títulos preliminar, I, II (capítulos I, II y XI), VII y VIII de la Ley 7/2023.','estatuto de los trabajadores':'Capítulo I (sección 4ª), Capítulo II (secciones 1ª y 2ª) y Capítulo III (sección 1ª) del Título I del RDL 2/2015.','seguridad social':'Capítulos II, III y IV (sección 1ª) del Título I, Capítulo XI (excepto arts. 196-199) del Título II y Capítulo I (sección 1ª) del Título VI del RDL 8/2015.'};
 
@@ -546,11 +545,11 @@ async function dbGetFileData(fid){
   return data?.[0]?.data||null;
 }
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
-async function dbSaveQuestions(mid,fid,questions){if(!sb||!questions.length)return 0;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q}));const delays=[0,800,2000];for(let attempt=0;attempt<delays.length;attempt++){if(delays[attempt])await new Promise(r=>setTimeout(r,delays[attempt]));const{error}=await sb.from('preguntas_cache').insert(rows);if(!error)return rows.length;const isTransient=!error.code||error.status>=500;if(!isTransient||attempt===delays.length-1){console.error('dbSaveQuestions: fallo definitivo',{fid,attempt,error});throw error;}console.warn(`dbSaveQuestions: intento ${attempt+1} fallido, reintentando...`,error);}return 0;}
-async function dbGetCachedQuestions(mid,count){if(!sb)return[];const{data}=await sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).not('archivo_id','like','_sup_%').limit(5000);if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
+async function dbSaveQuestions(mid,fid,questions,fonte='xerada'){if(!sb||!questions.length)return 0;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q.pregunta||q,fonte,num_orixinal:q.num_orixinal??null}));const delays=[0,800,2000];for(let attempt=0;attempt<delays.length;attempt++){if(delays[attempt])await new Promise(r=>setTimeout(r,delays[attempt]));const{error}=await sb.from('preguntas_cache').insert(rows);if(!error)return rows.length;if(attempt===delays.length-1){console.error('dbSaveQuestions: fallo definitivo',{fid,attempt,error});throw error;}console.warn(`dbSaveQuestions: intento ${attempt+1} fallido, reintentando...`,error);}return 0;}
+async function dbGetCachedQuestions(mid,count,fonte=null){if(!sb)return[];let q=sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).not('archivo_id','like','_sup_%').limit(5000);if(fonte)q=q.eq('fonte',fonte);const{data}=await q;if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
 async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);return count||0;}
 async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
-async function dbDeleteQuestionsByMateria(mid){if(sb)await sb.from('preguntas_cache').delete().eq('materia_id',mid);}
+async function dbDeleteQuestionsByMateria(mid,fonte=null){if(!sb)return;let q=sb.from('preguntas_cache').delete().eq('materia_id',mid);if(fonte)q=q.eq('fonte',fonte);await q;}
 // fallos table: CREATE TABLE fallos(id uuid default gen_random_uuid() primary key, materia_id text, user_id text, pregunta jsonb, created_at timestamptz default now());
 async function dbSaveFallo(mid,q){if(!sb)return;try{await sb.from('fallos').insert({materia_id:mid,user_id:getUserId()||'',pregunta:q});}catch(e){}}
 async function dbLoadFallos(mid){if(!sb)return[];const uid=getUserId();try{let q=sb.from('fallos').select('*').eq('materia_id',mid).order('created_at',{ascending:false});if(uid)q=q.eq('user_id',uid);const{data}=await q;return data||[];}catch(e){return[];}}
@@ -711,33 +710,16 @@ async function buildSimulacroQuestions(total){
       return qs;
     }catch(e){console.error(`[SIM] ${m.name} THREW:`,e.message);return[];}
   }));
+  const semPreguntas=reparto.filter((r,i)=>results[i].length===0).map(r=>r.m.name);
+  if(semPreguntas.length)alert('⚠️ Sen preguntas literais en caché para: '+semPreguntas.join(', ')+'. Quedarán fóra do simulacro.');
   const flat=results.flat();
   console.log('[SIM] total pool=',flat.length);
   return flat;
 }
 
 async function generateSimQuestions(m,n){
-  // Cache primero — si hay suficiente, retorno inmediato sin Gemini
-  const cached=await dbGetCachedQuestions(m.id,n);
-  if(cached.length>0)return cached;
-  // Sin caché: una sola tanda paralela por archivo, sin rondas secuenciales
-  const files=[...m.files.filter(f=>f.type==='test'),...m.files.filter(f=>f.type==='teoria')];
-  if(!files.length)return[];
-  const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}. No hagas preguntas de otras partes.`:'Genera preguntas variadas de todo el documento.';
-  const perFile=Math.max(n,Math.ceil(n/files.length)+5);// pedir un poco más para tener margen
-  const results=await Promise.allSettled(files.map(async f=>{
-    const data=await dbGetFileData(f.id);if(!data)return[];
-    const text=await callClaude([{role:'user',content:[
-      {type:'document',source:{type:'base64',media_type:'application/pdf',data:data.split(',')[1]}},
-      {type:'text',text:`Eres experto en oposiciones C1 de la Xunta de Galicia. ${ti}
-Genera exactamente ${perFile} preguntas tipo test para un simulacro oficial de examen. Devuelve SOLO un array JSON sin backticks:
-[{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación breve"}]
-donde ans es índice (0-3) de la respuesta correcta. Preguntas precisas, opciones plausibles. Responde en español.`}
-    ]}]);
-    return parseQuestions(text);
-  }));
-  const pool=results.flatMap(r=>r.status==='fulfilled'?r.value:[]);
-  return shuffle(pool).slice(0,n);
+  // Só caché literal — o simulacro nunca xera en vivo con Gemini
+  return await dbGetCachedQuestions(m.id,n,'literal');
 }
 
 // ── TIMER ──
@@ -1105,6 +1087,7 @@ function renderHome(c){
 }
 
 let uploadMode='teoria';
+let modoLiteralIndividual=false;
 function renderUpload(c,m){
   setTopBar(m.name,'Subir archivos');
   const generating=m.files.some(f=>f._generating);
@@ -1119,7 +1102,8 @@ function renderUpload(c,m){
     const rows=masivaFiles.map(item=>{
       const st=item.status==='feito'?'<span style="color:var(--ok)">✅ Subido</span>':item.status==='erro'?'<span style="color:var(--ko)">❌ Erro</span>':item.status==='subindo'?'<span style="color:var(--warn)">⏳...</span>':'Pendente';
       const matOpts=state.materias.map(mat=>`<option value="${mat.id}"${mat.id===item.materia_id?' selected':''}>${mat.icon} ${mat.name}</option>`).join('');
-      return`<div class="masiva-row"><span style="font-size:1.2rem">📄</span><div style="flex:1;min-width:0"><div style="font-size:.84rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</div><div style="font-size:.73rem;color:var(--muted)">${(item.size/1024).toFixed(0)} KB · ${st}</div></div><select onchange="updateMasivaFile('${item.tempId}','materia_id',this.value)">${matOpts}</select><select onchange="updateMasivaFile('${item.tempId}','tipo',this.value)"><option value="teoria"${item.tipo==='teoria'?' selected':''}>📚 Teoría</option><option value="test"${item.tipo==='test'?' selected':''}>📝 Test</option><option value="supuesto"${item.tipo==='supuesto'?' selected':''}>🏛️ Suposto</option></select>${item.status==='pendente'?`<button onclick="removeMasivaFile('${item.tempId}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;flex-shrink:0">🗑️</button>`:''}</div>`;
+      const isSup=item.tipo==='supuesto';
+      return`<div class="masiva-row"><span style="font-size:1.2rem">📄</span><div style="flex:1;min-width:0"><div style="font-size:.84rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</div><div style="font-size:.73rem;color:var(--muted)">${(item.size/1024).toFixed(0)} KB · ${st}</div></div><select onchange="updateMasivaFile('${item.tempId}','materia_id',this.value)">${matOpts}</select><select onchange="updateMasivaFile('${item.tempId}','tipo',this.value)"><option value="teoria"${item.tipo==='teoria'?' selected':''}>📚 Teoría</option><option value="test"${item.tipo==='test'?' selected':''}>📝 Test</option><option value="supuesto"${item.tipo==='supuesto'?' selected':''}>🏛️ Suposto</option></select><label style="display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--muted);white-space:nowrap;${isSup?'opacity:.4':''}" title="${isSup?'Non dispoñible para supostos':'Extracción literal (test de academia)'}"><input type="checkbox" ${item.literal&&!isSup?'checked':''} ${isSup?'disabled':''} onchange="updateMasivaFile('${item.tempId}','literal',this.checked)"> 🔍 Literal</label>${item.status==='pendente'?`<button onclick="removeMasivaFile('${item.tempId}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;flex-shrink:0">🗑️</button>`:''}</div>`;
     }).join('');
     c.innerHTML=`<div class="upload-section">${cacheBar}${tabsHtml}
       <div class="drop-zone" onclick="document.getElementById('fiMasiva').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleMasivaDrop(event)"><div class="dz-icon">📦</div><h3>Arrastra múltiples PDFs aquí</h3><p>Asigna materia e tipo a cada ficheiro por separado</p></div>
@@ -1129,25 +1113,36 @@ function renderUpload(c,m){
     return;
   }
   const files=m.files.filter(f=>f.type===uploadMode);
-  c.innerHTML=`<div class="upload-section">${cacheBar}${tabsHtml}
+  const literalToggle=`<label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted);margin-bottom:10px;cursor:pointer"><input type="checkbox" id="literalIndividualChk" ${modoLiteralIndividual?'checked':''} onchange="modoLiteralIndividual=this.checked"> 🔍 Extracción literal (test de academia)</label>`;
+  c.innerHTML=`<div class="upload-section">${cacheBar}${tabsHtml}${literalToggle}
   <div class="drop-zone" onclick="document.getElementById('fi').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event,'${m.id}')"><div class="dz-icon">${uploadMode==='teoria'?'📄':uploadMode==='supuesto'?'🏛️':'📋'}</div><h3>Arrastra PDFs aquí ou preme</h3><p>${uploadMode==='teoria'?'Leis, temario, apuntamentos':uploadMode==='supuesto'?'PDF do suposto práctico oficial':'Exames e tests de repaso'}</p></div>
   <input type="file" id="fi" class="file-input" accept=".pdf" multiple onchange="handleFiles(this.files,'${m.id}')">
   <div class="file-list">${files.length?files.map(fileRowHTML).join(''):`<p style="text-align:center;color:var(--muted);font-size:.82rem;padding:16px">Sen ficheiros nesta categoría</p>`}</div></div>`;
 }
 function setUploadMode(m){uploadMode=m;renderContent();}
-function fileRowHTML(f){return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB${f._generating?' · ⏳ generando preguntas...':f._generateError?' · ⚠️ Fallo ao gardar':''}</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':f.type==='supuesto'?'🏛️ Suposto':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;}
+function fileRowHTML(f){
+  let status='';
+  if(f._generating)status=' · ⏳ procesando...';
+  else if(f._literalError)status=` · ⚠️ ${f._literalError}`;
+  else if(f._literalInfo)status=` · ✅ ${f._literalInfo.extraidas} extraídas${f._literalInfo.descartadas?` · ⚠️ descartadas: ${f._literalInfo.descartadasNums.join(', ')} (ver consola)`:''}`;
+  else if(f._generateError)status=' · ⚠️ Fallo ao gardar';
+  return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB${status}</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':f.type==='supuesto'?'🏛️ Suposto':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;
+}
 function handleDrop(e,mid){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files,mid);}
 function handleFiles(files,mid){
   const mat=state.materias.find(x=>x.id===mid)||state.currentMateria;
   if(!mat){console.error('[handleFiles] materia not found mid='+mid);return;}
   console.log('[handleFiles] materia='+mat.id+' uploadMode='+uploadMode);
+  const literal=modoLiteralIndividual;
   Array.from(files).forEach(file=>{
     if(!file.name.toLowerCase().endsWith('.pdf'))return;
     const reader=new FileReader();
     reader.onload=async(ev)=>{
       const f={id:'f_'+Date.now()+Math.random().toString(36).slice(2),name:file.name,size:file.size,type:uploadMode,data:ev.target.result};
       mat.files.push(f);await dbSaveFile(f,mat.id);renderContent();
-      if(f.type!=='supuesto')generateAndCacheQuestions(f,mat); // background, no await
+      if(f.type==='supuesto')return;
+      if(literal)await extractLiteralQuestions(f,mat);
+      else await generateAndCacheQuestions(f,mat);
     };
     reader.readAsDataURL(file);
   });
@@ -1158,7 +1153,7 @@ function handleMasivaDrop(e){e.preventDefault();e.currentTarget.classList.remove
 function addMasivaFiles(fileList){
   Array.from(fileList).filter(f=>f.name.toLowerCase().endsWith('.pdf')).forEach(file=>{
     const tempId='mv_'+Date.now()+Math.random().toString(36).slice(2);
-    masivaFiles.push({tempId,file,name:file.name,size:file.size,materia_id:state.currentMateria?.id||state.materias[0]?.id||'',tipo:'teoria',status:'pendente'});
+    masivaFiles.push({tempId,file,name:file.name,size:file.size,materia_id:state.currentMateria?.id||state.materias[0]?.id||'',tipo:'teoria',status:'pendente',literal:false});
   });
   renderContent();
 }
@@ -1181,7 +1176,7 @@ async function uploadAllMasiva(){
       const f={id:'f_'+Date.now()+Math.random().toString(36).slice(2),name:item.name,size:item.size,type:item.tipo,data:ev.target.result};
       mat.files.push(f);
       await dbSaveFile(f,mat.id);
-      if(f.type!=='supuesto')toGenerate.push({f,mat});
+      if(f.type!=='supuesto')toGenerate.push({f,mat,literal:item.literal});
       item.status='feito';done++;
       const b=document.getElementById('masivaProgBox');
       if(b)b.textContent=`📤 Subindo... ${done}/${pending.length}`;
@@ -1191,9 +1186,10 @@ async function uploadAllMasiva(){
     reader.readAsDataURL(item.file);
   })));
   for(let i=0;i<toGenerate.length;i++){
-    const{f,mat}=toGenerate[i];
-    if(box)box.textContent=`✨ Xerando preguntas... ${i+1}/${toGenerate.length} (${f.name})`;
-    await generateAndCacheQuestions(f,mat,true);
+    const{f,mat,literal}=toGenerate[i];
+    if(box)box.textContent=`${literal?'🔍 Extraendo':'✨ Xerando'} preguntas... ${i+1}/${toGenerate.length} (${f.name})`;
+    if(literal)await extractLiteralQuestions(f,mat,true);
+    else await generateAndCacheQuestions(f,mat,true);
   }
   renderContent();
 }
@@ -1227,13 +1223,13 @@ async function summarizeFile(fid){
 
 function renderTests(c,m){
   setTopBar(m.name,'Tests de práctica');
-  const banco=m.files.filter(f=>f.type==='test').length,teoria=m.files.filter(f=>f.type==='teoria').length;
+  const banco=m.files.filter(f=>f.type==='test').length;
   c.innerHTML=`<div class="test-view">
     ${m.temario?`<div class="temario-hint"><strong>📌 A IA só xerará preguntas sobre:</strong>${m.temario}</div>`:''}
     ${m.questionCount?`<div style="background:#f0faf4;border:1px solid var(--ok);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--ok);font-weight:600">💾 ${m.questionCount} preguntas en caché · Carga instantánea ⚡</div>`:m.files.some(f=>f._generating)?`<div style="background:#fff8e1;border:1px solid var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--warn)">⏳ Xerando preguntas en segundo plano...</div>`:m.files.some(f=>f._generateError)?`<div style="background:#fff0f0;border:1px solid var(--ko);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--ko)">⚠️ Algúns arquivos fallaron ao gardar preguntas. Revisa a lista de ficheiros.</div>`:''}
     <div class="test-options-grid">
       <div class="test-option-card" onclick="${banco||m.questionCount?"startQuiz('banco')":"alert('Sobe primeiro PDFs de test.')"}"><div class="toc-icon">📋</div><h3>Test de banco</h3><p>${banco?`${banco} ficheiro${banco>1?'s':''}`:' Sen ficheiros'}</p></div>
-      <div class="test-option-card" onclick="${teoria||m.questionCount?"startQuiz('ia')":"alert('Sobe primeiro PDFs de teoría.')"}"><div class="toc-icon">✨</div><h3>Test xerado por IA</h3><p>${teoria?`${teoria} ficheiro${teoria>1?'s':''}`:' Sen ficheiros'}${m.temario?' · Só temario':''}</p></div>
+      <div class="test-option-card" style="opacity:.45;cursor:not-allowed" title="Desactivado: as preguntas xeradas por IA non son fiables"><div class="toc-icon">✨</div><h3>Test xerado por IA</h3><p>Desactivado temporalmente</p></div>
     </div>
     <div class="instrucciones-box"><div class="ib-header"><span class="ib-title">📌 Títulos que entran no exame</span><span class="ib-badge ${m.temario?'custom':''}">${m.temario?'Configurado':'Sen configurar'}</span></div>
     <textarea id="temarioInput" placeholder="Ex: Título preliminar, Título I...">${m.temario||''}</textarea>
@@ -1257,9 +1253,13 @@ async function startQuiz(mode){
   state.quizMode=mode;const m=state.currentMateria;const c=document.getElementById('content');
   c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>${m.questionCount?'Cargando preguntas...':'Generando preguntas con IA...'}</h3></div>`;
   try{
-    let questions=await dbGetCachedQuestions(m.id,30);
+    let questions=await dbGetCachedQuestions(m.id,30,mode==='banco'?'literal':null);
     if(questions.length<10){
-      // Caché vacía: generación rápida (1 llamada/archivo en paralelo) + guardar en caché sin bloquear
+      if(mode==='banco'){
+        c.innerHTML=`<div class="empty-state"><div class="es-icon">📋</div><h3>Sen preguntas literais en caché</h3><p>Sube tests de academia con extracción literal desde Subir arquivos.</p><button class="btn btn-primary" onclick="showView('tests')">Volver</button></div>`;
+        return;
+      }
+      // Caché vacía (modo IA): generación rápida (1 llamada/archivo en paralelo) + guardar en caché sin bloquear
       const files=m.files.filter(f=>f.type==='test'||f.type==='teoria');
       if(!files.length)throw new Error('Sobe ficheiros antes de facer o test.');
       const ti=m.temario?`CRÍTICO: Genera preguntas ÚNICAMENTE sobre: ${m.temario}.`:'Genera preguntas variadas.';
@@ -1272,7 +1272,7 @@ async function startQuiz(mode){
             {type:'text',text:`Eres experto en oposiciones C1 Xunta de Galicia. ${ti} Genera exactamente 30 preguntas tipo test. Devuelve SOLO array JSON sin backticks: [{"q":"pregunta","opts":["a","b","c","d"],"ans":0,"exp":"explicación"}] Responde en español.`}
           ]}]);
           const qs=parseQuestions(text);
-          if(qs.length)dbSaveQuestions(m.id,f.id,qs);// guardar en caché (sin await, no bloquea)
+          if(qs.length){try{await dbSaveQuestions(m.id,f.id,qs,'xerada');}catch(e){console.error('startQuiz: fallo ao gardar en caché',f.name,e);}}
           return qs;
         }catch(_){return[];}
       }));
@@ -1331,12 +1331,113 @@ async function generateAndCacheQuestions(file,materia,quiet=false){
     );
     const results=await Promise.all(calls);
     const unique=results.flat().filter((q,i,arr)=>arr.findIndex(x=>x.q===q.q)===i);
-    const saved=await dbSaveQuestions(materia.id,file.id,unique);
+    const saved=await dbSaveQuestions(materia.id,file.id,unique,'xerada');
     const m=state.materias.find(x=>x.id===materia.id);
     if(m)m.questionCount=(m.questionCount||0)+saved;
   }catch(e){
     console.error('generateAndCacheQuestions: error en archivo',file.name,e);
     if(fileObj)fileObj._generateError=true;
+  }finally{
+    if(fileObj)delete fileObj._generating;
+    if(!quiet)renderContent();
+  }
+}
+
+// ── EXTRACCIÓN LITERAL (test de academia, transcripción sen xerar) ──
+const PROMPT_SOLUCIONES_LITERAL=`Este texto contiene un test y, normalmente al final, una tabla o lista de soluciones (número de pregunta y letra correcta, a veces con una explicación). Tu única tarea es localizar y transcribir esa tabla de soluciones EXACTAMENTE como aparece. Prohibido deducir, completar o corregir nada. Devuelve SOLO JSON válido, sin markdown ni texto extra:
+{"soluciones":[{"num":1,"letra":"B","exp":"..."}]}
+- "num": el número de pregunta tal como figura en la tabla.
+- "letra": la letra tal como figura (A, B, C o D).
+- "exp": la explicación literal si la tabla la incluye; si no, "".
+Si el texto NO contiene tabla de soluciones, devuelve {"soluciones":null}.`;
+
+const PROMPT_PREGUNTAS_LITERAL=`Eres un transcriptor. Transcribe LITERALMENTE todas las preguntas tipo test de este texto. Prohibido reformular, corregir erratas, resumir, completar o inventar: copia el texto exacto. NO incluyas la tabla de soluciones. Devuelve SOLO JSON válido, sin markdown ni texto extra:
+{"preguntas":[{"num":1,"q":"...","opts":["...","...","...","..."]}],
+ "descartadas":[{"num":7,"motivo":"..."}]}
+- "num": el número original de la pregunta tal como aparece en el PDF.
+- "q": el enunciado exacto.
+- "opts": las 4 opciones exactas, en orden, sin la letra delante.
+- Si una pregunta no tiene exactamente 4 opciones o está incompleta, NO la incluyas en "preguntas": ponla en "descartadas" con su número y el motivo.`;
+
+function parseSolucionesLiteral(text){
+  const s=text.replace(/```json|```/g,'').trim();
+  let r;
+  try{r=JSON.parse(s);}catch(e){throw new Error('JSON de solucións inválido: '+e.message);}
+  if(r.soluciones===null)return null;
+  if(!Array.isArray(r.soluciones))throw new Error('JSON de solucións con formato inesperado.');
+  return r.soluciones;
+}
+
+function parsePreguntasLiteral(text){
+  const s=text.replace(/```json|```/g,'').trim();
+  let r;
+  try{r=JSON.parse(s);}catch(e){throw new Error('JSON de preguntas inválido: '+e.message);}
+  if(!Array.isArray(r.preguntas))throw new Error('JSON de preguntas con formato inesperado.');
+  return{preguntas:r.preguntas,descartadas:Array.isArray(r.descartadas)?r.descartadas:[]};
+}
+
+function mergeLiteral(soluciones,preguntas,descartadas){
+  const dupSol=[],seenSol=new Set();
+  for(const s of soluciones){if(seenSol.has(s.num))dupSol.push(s.num);seenSol.add(s.num);}
+  const dupPreg=[],seenPreg=new Set();
+  for(const p of preguntas){if(seenPreg.has(p.num))dupPreg.push(p.num);seenPreg.add(p.num);}
+  const badLetra=soluciones.filter(s=>!['A','B','C','D'].includes(s.letra)).map(s=>s.num);
+  const numsSol=new Set(soluciones.map(s=>s.num));
+  const numsPreg=new Set(preguntas.map(p=>p.num));
+  const numsDescartadas=new Set((descartadas||[]).map(d=>d.num));
+  const faltaEnSol=[...numsPreg].filter(n=>!numsSol.has(n));
+  const faltaEnPreg=[...numsSol].filter(n=>!numsPreg.has(n)&&!numsDescartadas.has(n));
+  if(dupSol.length||dupPreg.length||badLetra.length||faltaEnSol.length||faltaEnPreg.length){
+    const motivos=[];
+    if(dupSol.length)motivos.push(`num duplicado en solucións: ${dupSol.join(', ')}`);
+    if(dupPreg.length)motivos.push(`num duplicado en preguntas: ${dupPreg.join(', ')}`);
+    if(badLetra.length)motivos.push(`letra fóra de A-D: ${badLetra.join(', ')}`);
+    if(faltaEnSol.length)motivos.push(`pregunta sen solución: ${faltaEnSol.join(', ')}`);
+    if(faltaEnPreg.length)motivos.push(`solución sen pregunta: ${faltaEnPreg.join(', ')}`);
+    return{ok:false,motivoAbort:motivos.join(' · ')};
+  }
+  const solByNum=new Map(soluciones.map(s=>[s.num,s]));
+  const rows=preguntas.map(p=>{
+    const sol=solByNum.get(p.num);
+    return{pregunta:{q:p.q,opts:p.opts,ans:'ABCD'.indexOf(sol.letra),exp:sol.exp||''},num_orixinal:p.num};
+  });
+  return{ok:true,rows};
+}
+
+async function extractLiteralQuestions(file,materia,quiet=false){
+  const fileObj=materia.files.find(x=>x.id===file.id);
+  if(fileObj){fileObj._generating=true;delete fileObj._generateError;delete fileObj._literalError;delete fileObj._literalInfo;}
+  if(!quiet)renderContent();
+  try{
+    const data=await dbGetFileData(file.id);
+    if(!data)throw new Error('Non se puideron cargar os datos do arquivo.');
+    const base64=data.split(',')[1];
+    if(base64.length>=MAX_PDF_BASE64)throw new Error(`PDF demasiado grande para extracción literal (~${(base64.length/1e6).toFixed(1)}MB codificado). Divide o PDF ou usa o fluxo de xeración normal.`);
+
+    const docPart={type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}};
+
+    // Pasada 1 — tabla de solucións. Secuencial: se falla ou non hai táboa, abortamos SEN gastar a Pasada 2.
+    const pasada1=await callClaude([{role:'user',content:[docPart,{type:'text',text:PROMPT_SOLUCIONES_LITERAL}]}],{raw:true});
+    if(pasada1.finishReason==='MAX_TOKENS')throw new Error('A táboa de solucións truncouse (resposta demasiado longa). Non se gardou nada.');
+    const soluciones=parseSolucionesLiteral(pasada1.text);
+    if(soluciones===null)throw new Error('O PDF non contén unha táboa de solucións detectable.');
+
+    // Pasada 2 — preguntas. Só se lanza se a Pasada 1 foi válida.
+    const pasada2=await callClaude([{role:'user',content:[docPart,{type:'text',text:PROMPT_PREGUNTAS_LITERAL}]}],{raw:true});
+    if(pasada2.finishReason==='MAX_TOKENS')throw new Error('A transcrición de preguntas truncouse (resposta demasiado longa). Non se gardou nada.');
+    const{preguntas,descartadas}=parsePreguntasLiteral(pasada2.text);
+    if(descartadas.length)console.warn(`extractLiteralQuestions: ${descartadas.length} pregunta(s) descartada(s) en "${file.name}"`,descartadas);
+
+    const merged=mergeLiteral(soluciones,preguntas,descartadas);
+    if(!merged.ok)throw new Error('Non cadran preguntas e solucións: '+merged.motivoAbort);
+
+    const saved=await dbSaveQuestions(materia.id,file.id,merged.rows,'literal');
+    fileObj._literalInfo={extraidas:merged.rows.length,descartadas:descartadas.length,descartadasNums:descartadas.map(d=>d.num)};
+    const m=state.materias.find(x=>x.id===materia.id);
+    if(m)m.questionCount=(m.questionCount||0)+saved;
+  }catch(e){
+    console.error('extractLiteralQuestions: error en archivo',file.name,e);
+    if(fileObj){fileObj._generateError=true;fileObj._literalError=e.message;}
   }finally{
     if(fileObj)delete fileObj._generating;
     if(!quiet)renderContent();
@@ -1356,8 +1457,9 @@ async function regenerarSupuesto(fid){
 async function regenerarPreguntas(materiaId){
   const m=state.materias.find(x=>x.id===materiaId);
   if(!m)return;
-  await dbDeleteQuestionsByMateria(materiaId);
-  m.questionCount=0;
+  if(!confirm('¿Rexenerar preguntas de "'+m.name+'"? Isto borrará TODO o caché XERADO (non literal) desta materia.'))return;
+  await dbDeleteQuestionsByMateria(materiaId,'xerada');
+  m.questionCount=await dbCountCachedQuestions(materiaId);
   renderContent();
   const files=[...m.files.filter(f=>f.type==='test'),...m.files.filter(f=>f.type==='teoria')];
   for(const f of files){await generateAndCacheQuestions(f,m);}
@@ -1381,7 +1483,8 @@ async function extractTextFromBase64PDF(base64){
   return text.slice(0,15000); // limit to 15000 chars
 }
 
-async function callClaude(messages){
+const MAX_PDF_BASE64=3000000;
+async function callClaude(messages,{raw=false}={}){
   let prompt='';
   let pdfBase64=null;
   for(const m of messages){
@@ -1395,10 +1498,11 @@ async function callClaude(messages){
     }
   }
   const body={prompt};
-  if(pdfBase64&&pdfBase64.length<3000000) body.pdfBase64=pdfBase64;
+  if(pdfBase64&&pdfBase64.length<MAX_PDF_BASE64) body.pdfBase64=pdfBase64;
   const resp=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d=await resp.json();if(d.error)throw new Error(d.error);
-  return(d.content||[]).map(x=>x.text||'').join('');
+  const text=(d.content||[]).map(x=>x.text||'').join('');
+  return raw?{text,finishReason:d.finishReason||null}:text;
 }
 
 function renderQuiz(c){
@@ -1446,7 +1550,7 @@ async function renderFlashcards(c,m){
   setTopBar(m.name,'Modo Estudo · Flashcards');
   if(!m.questionCount&&!m.files.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🃏</div><h3>Sen preguntas</h3><p>Xera preguntas primeiro desde Tests.</p><button class="btn btn-primary" onclick="showView('tests')">Ir a Tests</button></div>`;return;}
   c.innerHTML=`<div class="ai-loading"><div class="spinner"></div><h3>Cargando flashcards...</h3></div>`;
-  const qs=await dbGetCachedQuestions(m.id,50);
+  const qs=await dbGetCachedQuestions(m.id,50,'literal');
   if(!qs.length){c.innerHTML=`<div class="empty-state"><div class="es-icon">🃏</div><h3>Sen preguntas en caché</h3><p>Xera preguntas primeiro desde Tests.</p><button class="btn btn-primary" onclick="showView('tests')">Ir a Tests</button></div>`;return;}
   fc={questions:shuffle(qs),current:0,sabido:0,noSabido:0,revealed:false};
   renderFCCard(c);
@@ -1801,19 +1905,22 @@ function parseQuestions(text){
   // 2. Extract the JSON array (from first [ to last ])
   const start=s.indexOf('['),end=s.lastIndexOf(']');
   if(start!==-1&&end>start) s=s.slice(start,end+1);
+  const isValidQ=q=>q&&typeof q.q==='string'&&q.q.trim()&&Array.isArray(q.opts)&&q.opts.length===4&&Number.isInteger(q.ans)&&q.ans>=0&&q.ans<=3;
+  const filterValid=arr=>{const valid=arr.filter(isValidQ);if(valid.length<arr.length)console.warn(`parseQuestions: ${arr.length-valid.length} pregunta(s) descartada(s) por formato inválido`);return valid;};
   // 3. Try direct parse
-  try{return JSON.parse(s);}catch(_){}
+  try{const r=JSON.parse(s);if(Array.isArray(r)){const v=filterValid(r);if(v.length)return v;}}catch(_){}
   // 4. Truncated JSON: close any open string, then close open objects/arrays
   let fixed=s.replace(/,\s*$/,'');  // trailing comma
   const opens=[...fixed].reduce((d,c)=>{if(c==='"'&&fixed[fixed.indexOf(c)-1]!=='\\')d.inStr=!d.inStr;if(!d.inStr){if(c==='[')d.arr++;else if(c===']')d.arr--;else if(c==='{')d.obj++;else if(c==='}')d.obj--;}return d;},{arr:0,obj:0,inStr:false});
   if(opens.inStr) fixed+='"';
   if(opens.obj>0) fixed+='}'.repeat(opens.obj);
   if(opens.arr>0) fixed+=']'.repeat(opens.arr);
-  try{const r=JSON.parse(fixed);if(Array.isArray(r)&&r.length)return r;}catch(_){}
+  try{const r=JSON.parse(fixed);if(Array.isArray(r)&&r.length){const v=filterValid(r);if(v.length)return v;}}catch(_){}
   // 5. Regex fallback: extract complete question objects
   const items=[],re=/\{\s*"q"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"opts"\s*:\s*\[([^\]]+)\]\s*,\s*"ans"\s*:\s*(\d)\s*(?:,\s*"exp"\s*:\s*"((?:[^"\\]|\\.)*)")?\s*\}/g;
   let m;while((m=re.exec(s))!==null){try{const opts=JSON.parse('['+m[2]+']');items.push({q:m[1],opts,ans:parseInt(m[3]),exp:m[4]||''});}catch(_){}}
-  if(items.length) return items;
+  const validItems=filterValid(items);
+  if(validItems.length) return validItems;
   throw new Error('No se pudieron parsear las preguntas generadas.');
 }
 

@@ -1,4 +1,5 @@
-// v9 - gemini-2.5-flash, thinking disabled, maxOutputTokens 4096
+// v10 - gemini-2.5-flash, thinking disabled, maxOutputTokens 32768, maxDuration 60
+export const config = { maxDuration: 60 };
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{ role: 'user', parts }],
           generationConfig: {
-            maxOutputTokens: 4096,
+            maxOutputTokens: 32768,
             temperature: 0.7,
             thinkingConfig: { thinkingBudget: 0 }
           }
@@ -38,7 +39,8 @@ export default async function handler(req, res) {
     // Filtrar partes de "thinking" que 2.5-flash puede incluir
     const responseParts = data.candidates?.[0]?.content?.parts || [];
     const text = (responseParts.find(p => !p.thought) || responseParts[0])?.text || '';
-    res.status(200).json({ content: [{ type: 'text', text }] });
+    const finishReason = data.candidates?.[0]?.finishReason || null;
+    res.status(200).json({ content: [{ type: 'text', text }], finishReason });
 
   } catch (e) {
     res.status(500).json({ error: e.message });
