@@ -519,7 +519,14 @@ async function dbLoadMaterias(){
   // Contar preguntas por materia con queries COUNT paralelas (evita límite de 1000 filas de Supabase)
   const qcounts=await Promise.allSettled((mats||[]).map(async m=>{const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',m.id);return{id:m.id,count:count||0};}));
   const qcount={};qcounts.forEach(r=>{if(r.status==='fulfilled')qcount[r.value.id]=r.value.count;});
-  state.materias=(mats||[]).map(m=>({...m,files:(files||[]).filter(f=>f.materia_id===m.id).map(f=>({...f,data:null})),history:(hist||[]).filter(h=>h.materia_id===m.id),questionCount:qcount[m.id]||0}));
+  // Unha soa consulta agrupada en JS (non 1 por arquivo) para saber que arquivos xa teñen preguntas fonte='literal'
+  const{data:literalRows}=await sb.from('preguntas_cache').select('archivo_id').eq('fonte','literal').limit(50000);
+  const literalCounts={};(literalRows||[]).forEach(r=>{literalCounts[r.archivo_id]=(literalCounts[r.archivo_id]||0)+1;});
+  state.materias=(mats||[]).map(m=>({...m,files:(files||[]).filter(f=>f.materia_id===m.id).map(f=>{
+    const fc={...f,data:null};
+    if(f.type==='test'&&literalCounts[f.id])fc._literalInfo={extraidas:literalCounts[f.id]};
+    return fc;
+  }),history:(hist||[]).filter(h=>h.materia_id===m.id),questionCount:qcount[m.id]||0}));
 }
 async function dbLoadSimHistorial(){
   if(!sb)return;
