@@ -1126,7 +1126,15 @@ function fileRowHTML(f){
   else if(f._literalError)status=` · ⚠️ ${f._literalError}`;
   else if(f._literalInfo)status=` · ✅ ${f._literalInfo.extraidas} extraídas${f._literalInfo.descartadas?` · ⚠️ descartadas: ${f._literalInfo.descartadasNums.join(', ')} (ver consola)`:''}`;
   else if(f._generateError)status=' · ⚠️ Fallo ao gardar';
-  return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB${status}</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':f.type==='supuesto'?'🏛️ Suposto':'📝 Test'}</span><button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;
+  const extraerBtn=f.type==='test'&&!f._literalInfo&&!f._generating?`<button class="btn btn-secondary" style="font-size:.75rem;padding:5px 10px" onclick="extraerLiteralManual('${f.id}')">🔍 Extraer literal</button>`:'';
+  return`<div class="file-row"><span class="file-icon">📄</span><div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(0)} KB${status}</div></div><span class="file-type ${f.type}">${f.type==='teoria'?'📚 Teoría':f.type==='supuesto'?'🏛️ Suposto':'📝 Test'}</span>${extraerBtn}<button class="del-file" onclick="deleteFile('${f.id}')">🗑️</button></div>`;
+}
+async function extraerLiteralManual(fid){
+  const m=state.currentMateria;
+  if(!m)return;
+  const f=m.files.find(x=>x.id===fid);
+  if(!f)return;
+  await extractLiteralQuestions(f,m);
 }
 function handleDrop(e,mid){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files,mid);}
 function handleFiles(files,mid){
