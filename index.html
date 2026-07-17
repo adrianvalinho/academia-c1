@@ -516,12 +516,16 @@ async function dbLoadMaterias(){
   let hq=sb.from('historial').select('*').order('created_at');
   if(uid)hq=hq.eq('user_id',uid);
   const{data:hist}=await hq;
-  // Contar preguntas por materia con queries COUNT paralelas (evita límite de 1000 filas de Supabase)
-  const qcounts=await Promise.allSettled((mats||[]).map(async m=>{const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',m.id);return{id:m.id,count:count||0};}));
-  const qcount={};qcounts.forEach(r=>{if(r.status==='fulfilled')qcount[r.value.id]=r.value.count;});
-  // Unha soa consulta agrupada en JS (non 1 por arquivo) para saber que arquivos xa teñen preguntas fonte='literal'
+  // Unha soa consulta agrupada en JS (non 1 por arquivo/materia) para saber que arquivos xa teñen preguntas
+  // fonte='literal'. questionCount visible ao usuario derívase da mesma consulta — as xeradas NUNCA contan.
   const{data:literalRows}=await sb.from('preguntas_cache').select('archivo_id').eq('fonte','literal').limit(50000);
   const literalCounts={};(literalRows||[]).forEach(r=>{literalCounts[r.archivo_id]=(literalCounts[r.archivo_id]||0)+1;});
+  const archivoToMateria={};(files||[]).forEach(f=>{archivoToMateria[f.id]=f.materia_id;});
+  const qcount={};
+  Object.entries(literalCounts).forEach(([aid,n])=>{
+    const mid=archivoToMateria[aid];
+    if(mid)qcount[mid]=(qcount[mid]||0)+n;
+  });
   state.materias=(mats||[]).map(m=>({...m,files:(files||[]).filter(f=>f.materia_id===m.id).map(f=>{
     const fc={...f,data:null};
     if(f.type==='test'&&literalCounts[f.id])fc._literalInfo={extraidas:literalCounts[f.id]};
@@ -554,7 +558,7 @@ async function dbGetFileData(fid){
 async function dbUpdateTemario(mid,temario){if(sb)await sb.from('materias').update({temario}).eq('id',mid);}
 async function dbSaveQuestions(mid,fid,questions,fonte='xerada'){if(!sb||!questions.length)return 0;const rows=questions.map(q=>({materia_id:mid,archivo_id:fid,pregunta:q.pregunta||q,fonte,num_orixinal:q.num_orixinal??null}));const delays=[0,800,2000];for(let attempt=0;attempt<delays.length;attempt++){if(delays[attempt])await new Promise(r=>setTimeout(r,delays[attempt]));const{error}=await sb.from('preguntas_cache').insert(rows);if(!error)return rows.length;if(attempt===delays.length-1){console.error('dbSaveQuestions: fallo definitivo',{fid,attempt,error});throw error;}console.warn(`dbSaveQuestions: intento ${attempt+1} fallido, reintentando...`,error);}return 0;}
 async function dbGetCachedQuestions(mid,count,fonte=null){if(!sb)return[];let q=sb.from('preguntas_cache').select('pregunta').eq('materia_id',mid).not('archivo_id','like','_sup_%').limit(5000);if(fonte)q=q.eq('fonte',fonte);const{data}=await q;if(!data?.length)return[];return shuffle(data.map(r=>r.pregunta)).slice(0,count);}
-async function dbCountCachedQuestions(mid){if(!sb)return 0;const{count}=await sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);return count||0;}
+async function dbCountCachedQuestions(mid,fonte=null){if(!sb)return 0;let q=sb.from('preguntas_cache').select('*',{count:'exact',head:true}).eq('materia_id',mid);if(fonte)q=q.eq('fonte',fonte);const{count}=await q;return count||0;}
 async function dbDeleteQuestionsByFile(fid){if(sb)await sb.from('preguntas_cache').delete().eq('archivo_id',fid);}
 async function dbDeleteQuestionsByMateria(mid,fonte=null){if(!sb)return;let q=sb.from('preguntas_cache').delete().eq('materia_id',mid);if(fonte)q=q.eq('fonte',fonte);await q;}
 // fallos table: CREATE TABLE fallos(id uuid default gen_random_uuid() primary key, materia_id text, user_id text, pregunta jsonb, created_at timestamptz default now());
@@ -1162,7 +1166,7 @@ function handleFiles(files,mid){
     reader.readAsDataURL(file);
   });
 }
-async function deleteFile(fid){state.currentMateria.files=state.currentMateria.files.filter(f=>f.id!==fid);await dbDeleteFile(fid);await dbDeleteQuestionsByFile(fid);state.currentMateria.questionCount=await dbCountCachedQuestions(state.currentMateria.id);renderContent();}
+async function deleteFile(fid){state.currentMateria.files=state.currentMateria.files.filter(f=>f.id!==fid);await dbDeleteFile(fid);await dbDeleteQuestionsByFile(fid);state.currentMateria.questionCount=await dbCountCachedQuestions(state.currentMateria.id,'literal');renderContent();}
 
 function handleMasivaDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');addMasivaFiles(e.dataTransfer.files);}
 function addMasivaFiles(fileList){
@@ -1292,7 +1296,7 @@ async function startQuiz(mode){
         }catch(_){return[];}
       }));
       questions=shuffle(results.flat());
-      dbCountCachedQuestions(m.id).then(n=>m.questionCount=n);
+      dbCountCachedQuestions(m.id,'literal').then(n=>m.questionCount=n);
     }
     if(!questions.length)throw new Error('Non se puideron xerar preguntas.');
     quiz={questions:shuffle(questions).slice(0,Math.min(30,questions.length)),current:0,score:0,answered:false,wrongs:[]};
@@ -1346,9 +1350,8 @@ async function generateAndCacheQuestions(file,materia,quiet=false){
     );
     const results=await Promise.all(calls);
     const unique=results.flat().filter((q,i,arr)=>arr.findIndex(x=>x.q===q.q)===i);
-    const saved=await dbSaveQuestions(materia.id,file.id,unique,'xerada');
-    const m=state.materias.find(x=>x.id===materia.id);
-    if(m)m.questionCount=(m.questionCount||0)+saved;
+    await dbSaveQuestions(materia.id,file.id,unique,'xerada');
+    // questionCount visible ao usuario é só literal — un gardado xerada non o incrementa
   }catch(e){
     console.error('generateAndCacheQuestions: error en archivo',file.name,e);
     if(fileObj)fileObj._generateError=true;
@@ -1475,7 +1478,7 @@ async function regenerarPreguntas(materiaId){
   if(!m)return;
   if(!confirm('¿Rexenerar preguntas de "'+m.name+'"? Isto borrará TODO o caché XERADO (non literal) desta materia.'))return;
   await dbDeleteQuestionsByMateria(materiaId,'xerada');
-  m.questionCount=await dbCountCachedQuestions(materiaId);
+  m.questionCount=await dbCountCachedQuestions(materiaId,'literal');
   renderContent();
   const files=[...m.files.filter(f=>f.type==='test'),...m.files.filter(f=>f.type==='teoria')];
   for(const f of files){await generateAndCacheQuestions(f,m);}
